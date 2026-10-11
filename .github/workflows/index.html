@@ -69,7 +69,7 @@
   }
   #installAppBtn:active{ transform:scale(.96); filter:brightness(.9); }
 
-  nav{display:flex;overflow-x:auto;background:rgba(0,0,0,.35);
+  nav{display:flex;overflow-x:auto;background:#1c0019;
       border-bottom:1px solid var(--border);}
   nav button{flex:0 0 auto;background:none;border:none;color:#e9d9e6;padding:12px 13px;font-size:12.5px;
       opacity:.68;white-space:nowrap;position:relative;overflow:hidden;transition:opacity .15s, background .15s;}
@@ -267,18 +267,44 @@
   .keyBtn:active{background:rgba(232,195,74,.18);transform:scale(.94);}
   .keyBtn.keyClear{font-size:12px;color:var(--muted);}
   .keyBtn.keySpacer{visibility:hidden;}
+  /* ---------- Set-up PIN overlay ---------- */
+  #setupLock{
+    position:fixed;inset:0;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:var(--bg);padding:24px;text-align:center;
+  }
+  #setupLock.hidden{display:none;}
+  #setupLock h1{font-size:16px;margin:0 0 2px;color:var(--gold-bright);}
+  #setupLock p.sub{font-size:11.5px;color:var(--muted);margin:0 0 20px;}
+  #setupDots{display:flex;gap:14px;margin-bottom:18px;}
+  #setupLock.shake #setupDots{animation:shakeErr .4s;}
+  #setupLockError{font-size:12px;color:var(--out);height:16px;margin-bottom:8px;}
+  #setupKeypad{display:grid;grid-template-columns:repeat(3,64px);gap:12px;}
 </style>
 </head>
 <body>
 
 <div id="bgWatermark" class="no-print" aria-hidden="true"></div>
 
+<!-- ================= SET-UP PIN ================= -->
+<div id="setupLock" class="hidden no-print">
+  <h1>Set-up</h1>
+  <p class="sub">Enter the Set-up PIN</p>
+  <div id="setupDots"><div class="lockDot"></div><div class="lockDot"></div><div class="lockDot"></div><div class="lockDot"></div></div>
+  <div id="setupLockError"></div>
+  <div id="setupKeypad">
+    <button class="keyBtn" data-k="1">1</button><button class="keyBtn" data-k="2">2</button><button class="keyBtn" data-k="3">3</button>
+    <button class="keyBtn" data-k="4">4</button><button class="keyBtn" data-k="5">5</button><button class="keyBtn" data-k="6">6</button>
+    <button class="keyBtn" data-k="7">7</button><button class="keyBtn" data-k="8">8</button><button class="keyBtn" data-k="9">9</button>
+    <button class="keyBtn keyClear" data-k="cancel">Cancel</button><button class="keyBtn" data-k="0">0</button><button class="keyBtn keyClear" data-k="clear">Clear</button>
+  </div>
+</div>
+
 <!-- ================= LOCK SCREEN ================= -->
 <div id="lockScreen">
   <div class="lock-globe-outer"><div class="lock-globe"><img src="img/logo.jpg" alt="Church logo"></div></div>
   <h1>UNIVERSITY BAPTIST CHURCH, OTUOKE</h1>
   <p class="sub">Finance — enter PIN to unlock</p>
-  <p class="sub" style="font-size:11px;opacity:.7;margin-top:-6px;">Version 1.3</p>
+  <p class="sub" style="font-size:11px;opacity:.7;margin-top:-6px;">Version 1.5</p>
   <div id="lockDots">
     <div class="lockDot"></div><div class="lockDot"></div><div class="lockDot"></div><div class="lockDot"></div>
   </div>
@@ -313,33 +339,35 @@
 
   <nav id="tabs">
     <button data-tab="dashboard" class="active">Dashboard</button>
+    <button data-tab="notes">Notes</button>
     <button data-tab="income">Income</button>
     <button data-tab="expenditure">Expenditure</button>
-    <button data-tab="bankacct">Bank A/C</button>
-    <button data-tab="bankaccount">Bank Account</button>
-    <button data-tab="notes">Notes</button>
-    <button data-tab="remittances">Remittances</button>
+    <button data-tab="bankacct">Bank Calc</button>
     <button data-tab="duescalc">Dues</button>
-    <button data-tab="transactions">Bank Transactions</button>
+    <button data-tab="transactions">Cheque</button>
+    <button data-tab="bankaccount">Bank A/C</button>
+    <button data-tab="remittances">Remittance</button>
     <button data-tab="reports">Reports</button>
-    <button data-tab="exportdata">Backup</button>
-    <button data-tab="syncdata">Sync</button>
+    <button data-tab="setup">Set-up</button>
   </nav>
 </div>
 
 <main>
   <div id="dashboard" class="tab active"></div>
+  <div id="notes" class="tab"></div>
   <div id="income" class="tab"></div>
   <div id="expenditure" class="tab"></div>
   <div id="bankacct" class="tab"></div>
-  <div id="bankaccount" class="tab"></div>
-  <div id="notes" class="tab"></div>
-  <div id="remittances" class="tab"></div>
   <div id="duescalc" class="tab"></div>
   <div id="transactions" class="tab"></div>
+  <div id="bankaccount" class="tab"></div>
+  <div id="remittances" class="tab"></div>
   <div id="reports" class="tab"></div>
-  <div id="exportdata" class="tab"></div>
-  <div id="syncdata" class="tab"></div>
+  <div id="setup" class="tab">
+    <div id="setupPinCard"></div>
+    <div id="exportdata"></div>
+    <div id="syncdata"></div>
+  </div>
 </main>
 
 <button id="quickAddBtn" class="no-print" aria-label="Quick add income or expenditure">+</button>

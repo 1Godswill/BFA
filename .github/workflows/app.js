@@ -1,7 +1,7 @@
 /* UBC Finance — fully offline. All data stored in localStorage on this device.
    Item lists below mirror the church's original Excel workbook exactly. */
 
-const APP_VERSION = "1.3";
+const APP_VERSION = "1.5";
 
 const INCOME_ITEMS = [
   "BEGINNING THE MONTH","MIDWEEK","SUNDAY SCHOOL","OFFERING 1","OFFERING 2","TITHE",
@@ -163,7 +163,7 @@ async function writeBackupNow(){
     await writable.write(backupText());
     await writable.close();
     lastBackupTime = new Date();
-    const statusEl = document.getElementById("exportdata");
+    const statusEl = document.getElementById("setup");
     if(statusEl && statusEl.classList.contains("active")) renderExport();
   }catch(e){ /* couldn't write this time — next change will retry */ }
 }
@@ -314,15 +314,94 @@ function monthLabel(monthKey){
 }
 
 /* ---------- Tab routing ---------- */
+const DEFAULT_SETUP_PIN = "2222";
+function getSetupPin(){ return DB.get("setupPin", DEFAULT_SETUP_PIN); }
+let setupUnlocked = false;
+
+function activateTab(tabId){
+  if(tabId !== "setup") setupUnlocked = false;   // leaving Set-up locks it again
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===tabId));
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.id===tabId));
+  renderAll();
+}
+
 document.getElementById("tabs").addEventListener("click", (e)=>{
   const btn = e.target.closest("button[data-tab]");
   if(!btn) return;
-  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  btn.classList.add("active");
-  document.getElementById(btn.dataset.tab).classList.add("active");
-  renderAll();
+  if(btn.dataset.tab === "setup" && !setupUnlocked){ openSetupLock(); return; }
+  activateTab(btn.dataset.tab);
 });
+
+/* Set-up (Backup + Sync + PIN) is behind its own PIN — default 2222, changeable inside Set-up. */
+(function(){
+  const box = document.getElementById("setupLock");
+  const dots = box.querySelectorAll(".lockDot");
+  const err = document.getElementById("setupLockError");
+  let entered = "";
+  function refresh(){ dots.forEach((d,i)=>d.classList.toggle("filled", i<entered.length)); }
+  function reset(){ entered = ""; err.textContent = ""; refresh(); }
+  window.openSetupLock = function(){ reset(); box.classList.remove("hidden"); };
+  window.closeSetupLock = function(){ reset(); box.classList.add("hidden"); };
+  document.getElementById("setupKeypad").addEventListener("click", (e)=>{
+    const btn = e.target.closest(".keyBtn");
+    if(!btn) return;
+    const k = btn.dataset.k;
+    if(k === "cancel"){ closeSetupLock(); return; }
+    if(k === "clear"){ reset(); return; }
+    if(entered.length >= 4) return;
+    entered += k; refresh();
+    if(entered.length === 4){
+      if(entered === String(getSetupPin())){
+        setupUnlocked = true;
+        closeSetupLock();
+        activateTab("setup");
+      }else{
+        err.textContent = "Incorrect PIN — try again";
+        box.classList.add("shake");
+        setTimeout(()=>{ box.classList.remove("shake"); reset(); err.textContent = "Incorrect PIN — try again"; }, 400);
+      }
+    }
+  });
+  // Leaving the app locks Set-up again and moves off it.
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState === "hidden"){
+      setupUnlocked = false;
+      closeSetupLock();
+      const t = document.getElementById("setup");
+      if(t && t.classList.contains("active")) activateTab("dashboard");
+    }
+  });
+})();
+
+function renderSetupPinCard(){
+  const el = document.getElementById("setupPinCard");
+  if(!el || el.dataset.ready) return;     // built once, so typing isn't wiped by re-renders
+  el.dataset.ready = "1";
+  el.innerHTML = `
+    <div class="card">
+      <h2>Set-up PIN</h2>
+      <p style="font-size:12.5px;color:var(--muted);">
+        This 4-digit PIN protects the Set-up tab (Backup and Sync). The default is 2222 — change it here.
+        Keep it somewhere safe: it can only be changed by someone who knows the current PIN.
+      </p>
+      <label>Current PIN</label>
+      <input type="password" inputmode="numeric" maxlength="4" autocomplete="off" id="spCur">
+      <label>New PIN (4 digits)</label>
+      <input type="password" inputmode="numeric" maxlength="4" autocomplete="off" id="spNew">
+      <label>Confirm new PIN</label>
+      <input type="password" inputmode="numeric" maxlength="4" autocomplete="off" id="spNew2">
+      <button class="btn" id="spSave">Change PIN</button>
+    </div>`;
+  document.getElementById("spSave").addEventListener("click", ()=>{
+    const cur = document.getElementById("spCur"), n1 = document.getElementById("spNew"), n2 = document.getElementById("spNew2");
+    if(cur.value !== String(getSetupPin())){ toast("Current PIN is incorrect"); return; }
+    if(!/^\d{4}$/.test(n1.value)){ toast("New PIN must be exactly 4 digits"); return; }
+    if(n1.value !== n2.value){ toast("The new PINs don't match"); return; }
+    DB.set("setupPin", n1.value);
+    cur.value = n1.value = n2.value = "";
+    toast("Set-up PIN changed");
+  });
+}
 
 function renderAll(){
   renderSummaryBar();
@@ -336,6 +415,7 @@ function renderAll(){
   renderDues();
   renderTransactions();
   renderReports();
+  renderSetupPinCard();
   renderExport();
 }
 
@@ -541,7 +621,7 @@ function renderExpenditure(){
 }
 
 /* ================= BANK ACCOUNT TAB (manual bank-statement entries) =================
-   Separate from "Bank Transactions" (which is just a deposit/withdrawal ledger). This tab
+   Separate from the Cheque log (which is just a deposit/withdrawal ledger). This tab
    builds an actual Bank *account* — income by category + expenditure — straight from
    what you read off the bank statement. Only Income entries categorized
    "Tithe/Offering" feed the Dues Calculator; everything else here is for the record. */
@@ -763,147 +843,217 @@ function wireBankAccountReportCard(el){
   });
 }
 
+/* ================= BANK CALC TAB =================
+   Quick-entry scratch pad, modelled on the Excel's "BANK TRANSACTIONS ENTRIES" area:
+   only the figures needed for the bank dues are typed in (amounts only, no dates), they are
+   summed per month, and the dues are worked out from that total. Dues tab (Bank / Combined)
+   reads these figures automatically. Stored in bankEntries as {id, month:"YYYY-MM", amount,
+   modifiedAt}. Older entries (date + direction + category) still work: only the income ones
+   categorized "Tithe/Offering" ever fed dues, so only those are treated as figures; the rest
+   are kept untouched but not used. The real bank ledger is the separate Bank A/C tab. */
+let bankCalcMonth = "";
+let bankCalcUnlockUntil = 0;
+
+function bankFigureMonth(b){ return b.month || monthKeyOf(b.date); }
+function isBankFigure(b){ return !b.direction || (b.direction==="in" && b.category==="Tithe/Offering"); }
+function loadBankFigures(){ return loadBankEntries().filter(isBankFigure); }
+function bankBaseForMonth(monthKey){
+  return loadBankFigures().filter(b=>bankFigureMonth(b)===monthKey).reduce((s,b)=>s+(Number(b.amount)||0),0);
+}
+function duesBreakdown(base){
+  const r = x => Math.round(x*100)/100;
+  const association = r(base*0.05), conference = r(base*0.07), convention = r(base*0.20), pension = r(base*0.10);
+  return {association, conference, convention, pension, total: association+conference+convention+pension};
+}
+// Asks for the edit password once, then stays unlocked for 5 minutes so figures can be typed in quickly.
+function bankCalcAuth(label){
+  if(Date.now() < bankCalcUnlockUntil) return true;
+  if(!confirmEditPassword(label)) return false;
+  bankCalcUnlockUntil = Date.now() + 5*60*1000;
+  return true;
+}
+function parseAmounts(text){
+  const out = [];
+  String(text||"").replace(/\d[\d,]*(?:\.\d+)?/g, m=>{
+    const n = Number(m.replace(/,/g,""));
+    if(n > 0) out.push(n);
+    return m;
+  });
+  return out;
+}
+function bankCalcAdd(amounts){
+  if(!amounts.length){ toast("Enter a valid amount"); return false; }
+  if(!bankCalcAuth("add bank figures")) return false;
+  const t = nowMs();
+  const list = loadBankEntries();
+  amounts.forEach((a,i)=>list.push({id: uid(), month: bankCalcMonth, amount: a, modifiedAt: t+i}));
+  saveBankEntries(list);
+  return true;
+}
+
 function renderBankTab(){
   const el = document.getElementById("bankacct");
   if(!el) return;
-  const entries = loadBankEntries();
-  const editing = bankEditingId ? entries.find(b=>b.id===bankEditingId) : null;
-  const months = [...new Set(entries.map(b=>monthKeyOf(b.date)))].sort().reverse();
-  if(bankFilterMonth && !months.includes(bankFilterMonth)) bankFilterMonth = "";
+  if(!bankCalcMonth) bankCalcMonth = todayISO().slice(0,7);
+  const [yy, mm] = bankCalcMonth.split("-");
+  const all = loadBankFigures();
+  const figs = all.filter(b=>bankFigureMonth(b)===bankCalcMonth)
+                  .sort((a,b)=>(a.modifiedAt||0)-(b.modifiedAt||0));
+  const base = figs.reduce((s,b)=>s+(Number(b.amount)||0),0);
+  const d = duesBreakdown(base);
+  const hiddenOld = loadBankEntries().length - all.length;
 
-  let filtered = bankFilterMonth ? entries.filter(b=>monthKeyOf(b.date)===bankFilterMonth) : entries;
-  filtered = [...filtered].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const thisYear = new Date().getFullYear();
+  const years = [...new Set([...all.map(b=>bankFigureMonth(b).slice(0,4)), String(thisYear-1), String(thisYear), String(thisYear+1), yy])].sort();
 
-  const totalIn = filtered.filter(b=>b.direction==="in").reduce((s,b)=>s+(Number(b.amount)||0),0);
-  const totalOut = filtered.filter(b=>b.direction==="out").reduce((s,b)=>s+(Number(b.amount)||0),0);
-  const tithesOfferings = filtered.filter(b=>b.direction==="in" && b.category==="Tithe/Offering").reduce((s,b)=>s+(Number(b.amount)||0),0);
-
-  const dir = editing?.direction || "in";
-  const cat = editing?.category || "Tithe/Offering";
+  // Year table (like the Excel's month columns): base + dues for each month of the selected year
+  let yrBase = 0, yrCount = 0;
+  const yrDues = {association:0, conference:0, convention:0, pension:0, total:0};
+  const rows = MONTH_ABBR.map((ab,i)=>{
+    const key = yy + "-" + String(i+1).padStart(2,"0");
+    const f = all.filter(b=>bankFigureMonth(b)===key);
+    const bs = f.reduce((s,b)=>s+(Number(b.amount)||0),0);
+    const x = duesBreakdown(bs);
+    yrBase += bs; yrCount += f.length;
+    Object.keys(yrDues).forEach(k=>yrDues[k]+=x[k]);
+    return `<tr${key===bankCalcMonth?' style="background:rgba(232,195,74,.12);"':''}>
+      <td>${ab}</td><td style="text-align:right;">${f.length||""}</td>
+      <td style="text-align:right;">${bs?naira(bs):"–"}</td>
+      <td style="text-align:right;">${bs?naira(x.association):"–"}</td>
+      <td style="text-align:right;">${bs?naira(x.conference):"–"}</td>
+      <td style="text-align:right;">${bs?naira(x.convention):"–"}</td>
+      <td style="text-align:right;">${bs?naira(x.pension):"–"}</td>
+      <td style="text-align:right;"><b>${bs?naira(x.total):"–"}</b></td></tr>`;
+  }).join("");
 
   el.innerHTML = `
     <div class="card">
-      <h2>${editing ? "Edit Bank Entry" : "Add Bank Transaction"}</h2>
+      <h2>Bank Calc</h2>
       <p style="font-size:12px;color:var(--muted);margin-top:-4px;">
-        Enter figures straight from the bank statement — builds a Bank account
-        separate from Cash. Only Income entries categorized "Tithe/Offering" count
-        toward dues. (This is different from the "Bank Transactions" tab, which is just a
-        deposit/withdrawal ledger.)
+        Type the figures you need for dues from the bank statement or SMS alerts — amounts only,
+        no dates. They are added up for the month and the dues are worked out below. This feeds
+        the Dues tab (Bank and Combined) automatically.
       </p>
-      <form id="bankForm">
-        <label>Date</label>
-        <input type="date" name="date" required value="${esc(editing?.date || todayISO())}">
-        <label>Type</label>
-        <select name="direction" id="bankDirectionSelect">
-          <option value="in" ${dir==="in"?"selected":""}>Income (money in)</option>
-          <option value="out" ${dir==="out"?"selected":""}>Expenditure (money out)</option>
-        </select>
-        <div id="bankCategoryWrap" style="${dir==="out"?"display:none;":""}">
-          <label>Category</label>
-          <select name="category" id="bankCategorySelect">
-            ${BANK_INCOME_CATEGORIES.map(c=>`<option ${cat===c?"selected":""}>${c}</option>`).join("")}
-          </select>
-        </div>
-        <label id="bankItemLabel">${dir==="out" ? "Item / Description" : (cat==="Other" ? "Describe it" : "Description (optional)")}</label>
-        <input name="item" id="bankItemInput" value="${esc(editing?.item)}" placeholder="e.g. Building fund">
-        <label>Amount (₦)</label>
-        <input type="number" name="amount" required value="${editing?.amount||""}">
-        <label>Note (optional)</label>
-        <input name="note" value="${esc(editing?.note)}">
-        <button class="btn" type="submit">${editing ? "Save Changes" : "Add Entry"}</button>
-        ${editing ? `<button class="btn secondary" type="button" id="cancelBankEdit">Cancel</button>` : ""}
-      </form>
+      <label>Month</label>
+      <div style="display:flex;gap:8px;">
+        <select id="bcMonth" style="flex:2;">${MONTH_NAMES.map((n,i)=>`<option value="${String(i+1).padStart(2,"0")}" ${mm===String(i+1).padStart(2,"0")?"selected":""}>${n}</option>`).join("")}</select>
+        <select id="bcYear" style="flex:1;">${years.map(y=>`<option ${y===yy?"selected":""}>${y}</option>`).join("")}</select>
+      </div>
     </div>
 
     <div class="card">
-      <h2>Bank Account</h2>
-      <label>Filter by Month</label>
-      <select id="bankMonthFilter">
-        <option value="">All months</option>
-        ${months.map(m=>`<option value="${m}" ${bankFilterMonth===m?"selected":""}>${monthLabel(m)}</option>`).join("")}
-      </select>
-      <div class="stat" style="margin-top:10px;">Total Income <b class="amt-in">${naira(totalIn)}</b></div>
-      <div class="stat">Total Expenditure <b class="amt-out">${naira(totalOut)}</b></div>
-      <div class="stat">Balance <b>${naira(totalIn-totalOut)}</b></div>
-      <div class="stat">— of which Tithe/Offering (feeds dues) <b>${naira(tithesOfferings)}</b></div>
+      <h2>Add figures — ${monthLabel(bankCalcMonth)}</h2>
+      <input id="bcAmount" type="number" inputmode="decimal" min="0" step="any" placeholder="Amount (₦), then press Enter / Add">
+      <button class="btn" id="bcAddBtn">Add</button>
+      <label>Or paste many amounts at once</label>
+      <textarea id="bcPaste" rows="4" placeholder="One amount per line, e.g.&#10;10000&#10;500&#10;7,000"></textarea>
+      <div id="bcPasteInfo" style="font-size:12px;color:var(--muted);margin:4px 0;"></div>
+      <button class="btn secondary" id="bcPasteBtn">Add pasted amounts</button>
     </div>
 
     <div class="card">
-      <h2>Entries</h2>
-      <div style="margin-top:8px;">
-        ${filtered.length===0 ? '<div class="empty">No bank entries yet.</div>' :
-          filtered.map(b=>`
-            <div class="entrycard">
-              <b>${b.direction==="in" ? esc(b.category) : "Expenditure"}${b.item ? " — "+esc(b.item) : ""}</b>
-              — <span class="${b.direction==="in"?"amt-in":"amt-out"}">${b.direction==="in"?"+":"-"}${naira(b.amount)}</span>
-              <div class="meta">${esc(b.date)}${b.note ? " • "+esc(b.note) : ""}</div>
-              <div style="margin-top:8px;display:flex;gap:8px;">
-                <button class="btn small secondary" data-edit="${b.id}">Edit</button>
-                <button class="btn small danger" data-del="${b.id}">Delete</button>
-              </div>
-            </div>
-          `).join("")}
+      <h2>${monthLabel(bankCalcMonth)} — Bank Total</h2>
+      <div class="stat">Figures entered <b>${figs.length}</b></div>
+      <div class="stat">Total (dues base) <b>${naira(base)}</b></div>
+      <div class="stat">Association (5%) <b>${naira(d.association)}</b></div>
+      <div class="stat">Conference (7%) <b>${naira(d.conference)}</b></div>
+      <div class="stat">Convention (20%) <b>${naira(d.convention)}</b></div>
+      <div class="stat">Pension (10%) <b>${naira(d.pension)}</b></div>
+      <div class="stat">Total Bank Dues <b class="amt-out">${naira(d.total)}</b></div>
+    </div>
+
+    <div class="card">
+      <h2>Figures — ${monthLabel(bankCalcMonth)}</h2>
+      ${figs.length===0 ? '<div class="empty">No figures for this month yet.</div>' : `
+        <button class="btn small secondary" id="bcUndoBtn" style="margin-bottom:8px;">Undo last entry</button>
+        ${figs.map((b,i)=>`
+          <div class="stat" style="align-items:center;">
+            <span>${i+1}. <b class="amt-in">${naira(b.amount)}</b></span>
+            <span style="display:flex;gap:6px;">
+              <button class="btn small secondary" data-bcedit="${b.id}">Edit</button>
+              <button class="btn small danger" data-bcdel="${b.id}">Delete</button>
+            </span>
+          </div>`).join("")}`}
+      ${hiddenOld>0 ? `<p style="font-size:11.5px;color:var(--muted);margin-top:10px;">${hiddenOld} older Bank Calc entr${hiddenOld===1?"y":"ies"} (expenditure or other categories) kept but not used here — they never fed dues. The dated bank ledger is the Bank A/C tab.</p>` : ""}
+    </div>
+
+    <div class="card">
+      <h2>${yy} — All Months</h2>
+      <div style="overflow-x:auto;">
+        <table style="min-width:520px;">
+          <tr><th style="text-align:left;">Mth</th><th>#</th><th>Base</th><th>5%</th><th>7%</th><th>20%</th><th>10%</th><th>Total</th></tr>
+          ${rows}
+          <tr style="border-top:2px solid var(--gold-dim);"><td><b>Total</b></td><td style="text-align:right;">${yrCount}</td>
+            <td style="text-align:right;"><b>${naira(yrBase)}</b></td>
+            <td style="text-align:right;"><b>${naira(yrDues.association)}</b></td>
+            <td style="text-align:right;"><b>${naira(yrDues.conference)}</b></td>
+            <td style="text-align:right;"><b>${naira(yrDues.convention)}</b></td>
+            <td style="text-align:right;"><b>${naira(yrDues.pension)}</b></td>
+            <td style="text-align:right;"><b>${naira(yrDues.total)}</b></td></tr>
+        </table>
       </div>
     </div>
   `;
 
-  const dirSelect = document.getElementById("bankDirectionSelect");
-  const catWrap = document.getElementById("bankCategoryWrap");
-  const catSelect = document.getElementById("bankCategorySelect");
-  const itemLabel = document.getElementById("bankItemLabel");
-
-  function syncFieldVisibility(){
-    const isIn = dirSelect.value === "in";
-    catWrap.style.display = isIn ? "" : "none";
-    if(!isIn) itemLabel.textContent = "Item / Description";
-    else if(catSelect.value === "Other") itemLabel.textContent = "Describe it";
-    else itemLabel.textContent = "Description (optional)";
+  function afterChange(refocus){
+    renderAll();
+    if(refocus){ const a = document.getElementById("bcAmount"); if(a) a.focus(); }
   }
-  dirSelect.addEventListener("change", syncFieldVisibility);
-  catSelect.addEventListener("change", syncFieldVisibility);
 
-  el.querySelector("#bankForm").addEventListener("submit", (ev)=>{
-    ev.preventDefault();
-    const fd = new FormData(ev.target);
-    const data = Object.fromEntries(fd.entries());
-    if(!confirmEditPassword(bankEditingId ? "save changes" : "add this entry")) return;
-    data.amount = Number(data.amount)||0;
-    data.modifiedAt = nowMs();
-    if(data.direction === "out") delete data.category;
-    let list = loadBankEntries();
-    if(bankEditingId){
-      list = list.map(b => {
-        if(b.id!==bankEditingId) return b;
-        const merged = {...b, ...data};
-        if(merged.direction === "out") delete merged.category; // don't keep a leftover income category
-        return merged;
-      });
-      toast("Bank entry updated");
-    }else{
-      list = [...list, {id: uid(), ...data}];
-      toast("Bank entry added");
-    }
-    saveBankEntries(list);
-    bankEditingId = null;
-    renderAll();
+  function setMonthFromSelects(){
+    bankCalcMonth = document.getElementById("bcYear").value + "-" + document.getElementById("bcMonth").value;
+    renderBankTab();
+  }
+  document.getElementById("bcMonth").addEventListener("change", setMonthFromSelects);
+  document.getElementById("bcYear").addEventListener("change", setMonthFromSelects);
+
+  const amtInput = document.getElementById("bcAmount");
+  function addSingle(){
+    const n = Number(amtInput.value);
+    if(bankCalcAdd(n>0 ? [n] : [])){ afterChange(true); }
+  }
+  document.getElementById("bcAddBtn").addEventListener("click", addSingle);
+  amtInput.addEventListener("keydown", (ev)=>{ if(ev.key==="Enter"){ ev.preventDefault(); addSingle(); } });
+
+  const pasteBox = document.getElementById("bcPaste");
+  const pasteInfo = document.getElementById("bcPasteInfo");
+  pasteBox.addEventListener("input", ()=>{
+    const a = parseAmounts(pasteBox.value);
+    pasteInfo.textContent = a.length ? `Found ${a.length} amount${a.length===1?"":"s"} totalling ${naira(a.reduce((s,x)=>s+x,0))}` : "";
+  });
+  document.getElementById("bcPasteBtn").addEventListener("click", ()=>{
+    const a = parseAmounts(pasteBox.value);
+    if(bankCalcAdd(a)){ toast(`${a.length} figure${a.length===1?"":"s"} added`); afterChange(false); }
   });
 
-  const cancelBtn = el.querySelector("#cancelBankEdit");
-  if(cancelBtn) cancelBtn.addEventListener("click", ()=>{ bankEditingId=null; renderAll(); });
-
-  el.querySelector("#bankMonthFilter").addEventListener("change", (ev)=>{
-    bankFilterMonth = ev.target.value; renderAll();
+  const undoBtn = document.getElementById("bcUndoBtn");
+  if(undoBtn) undoBtn.addEventListener("click", ()=>{
+    const last = figs[figs.length-1];
+    if(!last || !bankCalcAuth("undo the last entry")) return;
+    recordTombstone(last.id);
+    saveBankEntries(loadBankEntries().filter(x=>x.id!==last.id));
+    toast("Last entry removed");
+    afterChange(false);
   });
 
-  el.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click", ()=>{
-    bankEditingId = b.dataset.edit; renderAll(); el.scrollIntoView({behavior:"smooth"});
+  el.querySelectorAll("[data-bcedit]").forEach(b=>b.addEventListener("click", ()=>{
+    const rec = figs.find(x=>x.id===b.dataset.bcedit);
+    if(!rec) return;
+    const entered = prompt("New amount (₦):", rec.amount);
+    if(entered === null) return;
+    const n = Number(String(entered).replace(/,/g,""));
+    if(!(n > 0)){ toast("Enter a valid amount"); return; }
+    if(!bankCalcAuth("edit this figure")) return;
+    saveBankEntries(loadBankEntries().map(x=> x.id===rec.id ? {...x, amount:n, modifiedAt: nowMs()} : x));
+    toast("Figure updated");
+    afterChange(false);
   }));
-  el.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click", ()=>{
-    if(!confirmEditPassword("delete this bank entry")) return;
-    recordTombstone(b.dataset.del);
-    saveBankEntries(loadBankEntries().filter(x=>x.id!==b.dataset.del));
-    toast("Bank entry deleted");
-    renderAll();
+  el.querySelectorAll("[data-bcdel]").forEach(b=>b.addEventListener("click", ()=>{
+    if(!bankCalcAuth("delete this figure")) return;
+    recordTombstone(b.dataset.bcdel);
+    saveBankEntries(loadBankEntries().filter(x=>x.id!==b.dataset.bcdel));
+    toast("Figure deleted");
+    afterChange(false);
   }));
 }
 
@@ -1199,11 +1349,9 @@ let duesMonth = "";
 function computeDuesForMonth(monthKey){
   const income = loadIncome().filter(e=>monthKeyOf(e.date)===monthKey && DUES_BASE_ITEMS.includes(e.item));
   const cashBase = income.filter(e=>e.method==="Cash").reduce((s,e)=>s+(Number(e.amount)||0),0);
-  const bankBaseFromIncomeTab = income.filter(e=>e.method==="Bank").reduce((s,e)=>s+(Number(e.amount)||0),0);
-  const bankBaseFromBankTab = loadBankEntries()
-    .filter(b=>monthKeyOf(b.date)===monthKey && b.direction==="in" && b.category==="Tithe/Offering")
-    .reduce((s,b)=>s+(Number(b.amount)||0),0);
-  const bankBase = bankBaseFromIncomeTab + bankBaseFromBankTab;
+  // Bank side comes only from the figures typed into the Bank Calc tab (like the Excel's
+  // bank entries area), so nothing is counted twice.
+  const bankBase = bankBaseForMonth(monthKey);
   const combinedBase = cashBase + bankBase;
 
   function breakdown(base){
@@ -1225,12 +1373,12 @@ function computeDuesForMonth(monthKey){
 function renderDues(){
   const el = document.getElementById("duescalc");
   const income = loadIncome();
-  const bankMonths = loadBankEntries().filter(b=>b.direction==="in" && b.category==="Tithe/Offering").map(b=>monthKeyOf(b.date));
+  const bankMonths = loadBankFigures().map(b=>bankFigureMonth(b));
   const months = [...new Set([...income.map(e=>monthKeyOf(e.date)), ...bankMonths])].sort().reverse();
   if(!duesMonth && months.length) duesMonth = months[0];
 
   if(months.length===0){
-    el.innerHTML = `<div class="card"><div class="empty">Add Sunday School, Offering, or Tithe income entries (Cash or Bank), or Tithe/Offering entries in the Bank tab, first — dues are calculated from those.</div></div>`;
+    el.innerHTML = `<div class="card"><div class="empty">Add Sunday School, Offering 1/2 or Tithe cash income entries, or bank figures in the Bank Calc tab, first — dues are calculated from those.</div></div>`;
     return;
   }
 
@@ -1241,9 +1389,9 @@ function renderDues(){
       <h2>Dues Calculator</h2>
       <p style="font-size:12px;color:var(--muted);margin-top:-4px;">
         Cash base: Sunday School + Offering 1 + Offering 2 + Tithe income entries paid by Cash.
-        Bank base: the same items paid by Bank, plus any Bank tab entries categorized
-        "Tithe/Offering" — same formula as the church's original dues sheet: Association 5%,
-        Conference 7%, Convention 20%, Pension 10%.
+        Bank base: the total of the figures entered for the month in the Bank Calc tab.
+        Same formula as the church's original dues sheet: Association 5%, Conference 7%,
+        Convention 20%, Pension 10%.
       </p>
       <label>Month</label>
       <select id="duesMonthSelect">
@@ -1307,7 +1455,7 @@ function renderTransactions(){
 
   el.innerHTML = `
     <div class="card">
-      <h2>${editing ? "Edit Transaction" : "Add Bank Transaction"}</h2>
+      <h2>${editing ? "Edit Cheque Entry" : "Add Cheque Entry"}</h2>
       <form id="txnForm">
         <label>Date</label>
         <input type="date" name="date" required value="${esc(editing?.date || todayISO())}">
@@ -1327,7 +1475,7 @@ function renderTransactions(){
     </div>
 
     <div class="card">
-      <h2>Bank Transaction Log</h2>
+      <h2>Cheque Log</h2>
       <label>Filter by Month</label>
       <select id="txnMonthFilter">
         <option value="">All months</option>
@@ -1535,7 +1683,7 @@ function renderExport(){
 
     <div class="card">
       <h2>Manual Backup</h2>
-      <p style="font-size:12.5px;color:var(--muted);">Downloads one readable backup file (.json) with every Income, Expenditure and Bank Transactions entry — open it in any text editor to read it, or restore it below.</p>
+      <p style="font-size:12.5px;color:var(--muted);">Downloads one readable backup file (.json) with every Income, Expenditure and Cheque entry — open it in any text editor to read it, or restore it below.</p>
       <button class="btn" id="downloadBackupBtn">Download Backup Now</button>
       <label style="margin-top:14px;">Restore From Backup</label>
       <input type="file" id="restoreFileInput" accept=".json,application/json">
@@ -1547,8 +1695,8 @@ function renderExport(){
       <p style="font-size:12.5px;color:var(--muted);">Exports save as a CSV file — open with Excel or Google Sheets, or share it.</p>
       <button class="btn secondary" id="exportIncomeBtn">Export Income (CSV)</button>
       <button class="btn secondary" id="exportExpBtn">Export Expenditure (CSV)</button>
-      <button class="btn secondary" id="exportTxnBtn">Export Bank Transactions (CSV)</button>
-      <button class="btn secondary" id="exportBankBtn">Export Bank A/C (CSV)</button>
+      <button class="btn secondary" id="exportTxnBtn">Export Cheque Log (CSV)</button>
+      <button class="btn secondary" id="exportBankBtn">Export Bank Calc (CSV)</button>
       <button class="btn secondary" id="exportBankAcct2Btn">Export Bank Account (CSV)</button>
       <button class="btn secondary" id="exportNotesBtn">Export Notes (CSV)</button>
       <button class="btn secondary" id="exportRemitBtn">Export Remittances (CSV)</button>
@@ -1596,13 +1744,12 @@ function renderExport(){
   document.getElementById("exportTxnBtn").addEventListener("click", ()=>{
     const rows = [["Date","Particulars","Amount","Bank","Account Name","Cheque No."], ...loadTransactions().map(t=>[t.date,t.particulars,t.amount,t.bank,t.accountName,t.chequeNo])];
     downloadCSV("UBC_BankTransactions.csv", toCSV(rows));
-    toast("Bank log exported to Downloads");
+    toast("Cheque log exported to Downloads");
   });
   document.getElementById("exportBankBtn").addEventListener("click", ()=>{
-    const rows = [["Date","Direction","Category","Description","Amount","Note"],
-      ...loadBankEntries().map(b=>[b.date, b.direction==="in"?"Income":"Expenditure", b.direction==="in"?b.category:"", b.item, b.amount, b.note])];
+    const rows = [["Month","Amount"], ...loadBankFigures().map(b=>[bankFigureMonth(b), b.amount])];
     downloadCSV("UBC_BankAC.csv", toCSV(rows));
-    toast("Bank A/C exported to Downloads");
+    toast("Bank Calc figures exported to Downloads");
   });
   document.getElementById("exportBankAcct2Btn").addEventListener("click", ()=>{
     const rows = [["Date","Direction","Category","Description","Amount","Note"],
