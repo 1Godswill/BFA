@@ -1,7 +1,7 @@
 /* UBC Finance — fully offline. All data stored in localStorage on this device.
    Item lists below mirror the church's original Excel workbook exactly. */
 
-const APP_VERSION = "1.5";
+const APP_VERSION = "1.6";
 
 const INCOME_ITEMS = [
   "BEGINNING THE MONTH","MIDWEEK","SUNDAY SCHOOL","OFFERING 1","OFFERING 2","TITHE",
@@ -318,10 +318,63 @@ const DEFAULT_SETUP_PIN = "2222";
 function getSetupPin(){ return DB.get("setupPin", DEFAULT_SETUP_PIN); }
 let setupUnlocked = false;
 
-function activateTab(tabId){
-  if(tabId !== "setup") setupUnlocked = false;   // leaving Set-up locks it again
-  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===tabId));
+function sectionIsOpen(){ return document.body.classList.contains("in-section"); }
+
+/* ----- Set-up is itself a small menu of cards (PIN, Edit Protection, Backup, CSV, Sync, App info) ----- */
+const SETUP_SUBS = {pin:"Set-up PIN", protect:"Edit Protection", backup:"Backup & Restore", csv:"Export CSV", sync:"Sync", info:"App Info"};
+let setupSub = null;
+function paintSectionBar(title, iconSrc){
+  const ico = document.getElementById("sectionIcon"), ttl = document.getElementById("sectionTitle");
+  if(ttl) ttl.textContent = title;
+  if(ico) ico.innerHTML = iconSrc ? iconSrc.outerHTML : "";
+}
+function setSetupSub(key){
+  setupSub = key || null;
+  const box = document.getElementById("setup");
+  Object.keys(SETUP_SUBS).forEach(k=>box.classList.toggle("show-"+k, k===setupSub));
+  box.classList.toggle("sub-open", !!setupSub);
+  if(setupSub){
+    const c = document.querySelector('#setupHome .menuCard[data-sub="'+setupSub+'"]');
+    paintSectionBar("Set-up \u203A " + SETUP_SUBS[setupSub], c ? c.querySelector(".mcIcon svg") : null);
+  }else{
+    const c = document.querySelector('#tabs .menuCard[data-tab="setup"]');
+    paintSectionBar("Set-up", c ? c.querySelector(".mcIcon svg") : null);
+  }
+  window.scrollTo(0,0);
+}
+function openSetupSub(key){
+  setSetupSub(key);
+  try{ history.pushState({sec:"setup", sub:key}, ""); }catch(e){}
+}
+function closeSetupSub(){ setSetupSub(null); }
+
+/* Opens one section (the old "tabs"). The card menu is hidden and a slim bar with a Back button shows instead. */
+function activateTab(tabId, fromPop){
+  if(tabId !== "setup"){ setupUnlocked = false; if(setupSub) setSetupSub(null); }   // leaving Set-up locks it again
+  const wasOpen = sectionIsOpen();
+  const card = document.querySelector('#tabs .menuCard[data-tab="'+tabId+'"]');
+  document.querySelectorAll("#tabs .menuCard").forEach(b=>b.classList.toggle("active", b===card));
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.id===tabId));
+  document.body.classList.add("in-section");
+  if(card){
+    const lab = card.querySelector(".mcLabel");
+    paintSectionBar(lab ? lab.textContent : tabId, card.querySelector(".mcIcon svg"));
+  }
+  if(tabId === "setup" && !wasOpen) setSetupSub(null);      // always land on the Set-up cards
+  window.scrollTo(0,0);
+  // so the phone's Back button returns to the card menu instead of leaving the app
+  if(!fromPop && !wasOpen){ try{ history.pushState({sec:tabId}, ""); }catch(e){} }
+  renderAll();
+}
+
+/* Back to the card menu. */
+function showHome(){
+  setupUnlocked = false;
+  if(setupSub) setSetupSub(null);
+  document.querySelectorAll("#tabs .menuCard").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.body.classList.remove("in-section");
+  window.scrollTo(0,0);
   renderAll();
 }
 
@@ -330,6 +383,22 @@ document.getElementById("tabs").addEventListener("click", (e)=>{
   if(!btn) return;
   if(btn.dataset.tab === "setup" && !setupUnlocked){ openSetupLock(); return; }
   activateTab(btn.dataset.tab);
+});
+document.getElementById("setupHome").addEventListener("click", (e)=>{
+  const btn = e.target.closest("button[data-sub]");
+  if(btn) openSetupSub(btn.dataset.sub);
+});
+
+document.getElementById("sectionBack").addEventListener("click", ()=>{
+  if(history.state && history.state.sec){ history.back(); }   // popstate handler steps back one level
+  else if(setupSub) closeSetupSub();
+  else showHome();
+});
+window.addEventListener("popstate", (e)=>{
+  const st = e.state || {};
+  if(st.pv) return;                                          // report preview is handled by hideReportPreview
+  if(st.sec){ if(setupSub && !st.sub) closeSetupSub(); return; }
+  if(sectionIsOpen()) showHome();
 });
 
 /* Set-up (Backup + Sync + PIN) is behind its own PIN — default 2222, changeable inside Set-up. */
@@ -368,7 +437,7 @@ document.getElementById("tabs").addEventListener("click", (e)=>{
       setupUnlocked = false;
       closeSetupLock();
       const t = document.getElementById("setup");
-      if(t && t.classList.contains("active")) activateTab("dashboard");
+      if(t && t.classList.contains("active")) showHome();
     }
   });
 })();
@@ -378,7 +447,7 @@ function renderSetupPinCard(){
   if(!el || el.dataset.ready) return;     // built once, so typing isn't wiped by re-renders
   el.dataset.ready = "1";
   el.innerHTML = `
-    <div class="card">
+    <div class="card" data-sec="pin">
       <h2>Set-up PIN</h2>
       <p style="font-size:12.5px;color:var(--muted);">
         This 4-digit PIN protects the Set-up tab (Backup and Sync). The default is 2222 — change it here.
@@ -1646,7 +1715,7 @@ function renderExport(){
   const editProtectionOn = editPasswordEnabled();
 
   el.innerHTML = `
-    <div class="card">
+    <div class="card" data-sec="protect">
       <h2>Edit Protection</h2>
       <p style="font-size:12.5px;color:var(--muted);">
         When ON, a password is required before every Add, Edit, or Delete on any tab.
@@ -1657,7 +1726,7 @@ function renderExport(){
       <button class="btn ${editProtectionOn?'secondary':'gold'} small" id="toggleEditProtectionBtn">${editProtectionOn ? "Turn OFF" : "Turn ON"}</button>
     </div>
 
-    <div class="card">
+    <div class="card" data-sec="info">
       <h2>Install This App</h2>
       ${installed
         ? `<p style="font-size:12.5px;color:var(--muted);">Already installed — you're running it as an app.</p>`
@@ -1669,7 +1738,7 @@ function renderExport(){
       }
     </div>
 
-    <div class="card">
+    <div class="card" data-sec="backup">
       <h2>Live Backup (syncs as you work)</h2>
       <p style="font-size:12.5px;color:var(--muted);">
         ${liveSupported
@@ -1681,7 +1750,7 @@ function renderExport(){
       ${liveSupported ? `<button class="btn gold" id="enableLiveBackupBtn">${liveOn ? "Choose a Different Backup File" : "Choose Backup File & Enable"}</button>` : ""}
     </div>
 
-    <div class="card">
+    <div class="card" data-sec="backup">
       <h2>Manual Backup</h2>
       <p style="font-size:12.5px;color:var(--muted);">Downloads one readable backup file (.json) with every Income, Expenditure and Cheque entry — open it in any text editor to read it, or restore it below.</p>
       <button class="btn" id="downloadBackupBtn">Download Backup Now</button>
@@ -1690,7 +1759,7 @@ function renderExport(){
       <p style="font-size:11.5px;color:var(--muted);margin-top:6px;">Restoring replaces all data currently on this device with what's in the backup file.</p>
     </div>
 
-    <div class="card">
+    <div class="card" data-sec="csv">
       <h2>Export as CSV</h2>
       <p style="font-size:12.5px;color:var(--muted);">Exports save as a CSV file — open with Excel or Google Sheets, or share it.</p>
       <button class="btn secondary" id="exportIncomeBtn">Export Income (CSV)</button>
@@ -1702,7 +1771,7 @@ function renderExport(){
       <button class="btn secondary" id="exportRemitBtn">Export Remittances (CSV)</button>
     </div>
 
-    <div class="card">
+    <div class="card" data-sec="info">
       <h2>About this data</h2>
       <div class="stat"><span>App version</span> <b>${APP_VERSION}</b></div>
       <p style="font-size:12.5px;color:var(--muted);">All data lives only on this device (offline) unless you enable Live Backup, download a backup file, or set up Sync (see the Sync tab). Nothing is uploaded anywhere on its own.</p>

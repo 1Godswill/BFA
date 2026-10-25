@@ -349,7 +349,7 @@ function renderSyncTab() {
   if (!el) return;
   const cfg = Sync.getConfig();
   el.innerHTML = `
-    <div class="card">
+    <div class="card" data-sec="sync">
       <h2>Sync Across Devices</h2>
       <p style="font-size:12.5px;color:var(--muted);">
         Connects this device to your church's shared online data store, so

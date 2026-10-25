@@ -69,21 +69,111 @@
   }
   #installAppBtn:active{ transform:scale(.96); filter:brightness(.9); }
 
-  nav{display:flex;overflow-x:auto;background:#1c0019;
-      border-bottom:1px solid var(--border);}
-  nav button{flex:0 0 auto;background:none;border:none;color:#e9d9e6;padding:12px 13px;font-size:12.5px;
-      opacity:.68;white-space:nowrap;position:relative;overflow:hidden;transition:opacity .15s, background .15s;}
-  nav button.active{opacity:1;border-bottom:3px solid var(--gold);font-weight:700;color:var(--gold-bright);}
-  nav button:active{background:rgba(255,255,255,.08);}
-
-  /* ---------- Fixed summary bar ---------- */
+  /* ---------- Fixed summary bar (solid — nothing shows through it) ---------- */
   #summaryBar{
-    display:flex;background:rgba(0,0,0,.3);border-bottom:1px solid var(--border);
-    padding:8px 10px;gap:6px;
+    display:flex;background:#1c0019;border-bottom:1px solid var(--border);
+    padding:8px 10px;gap:8px;
   }
-  #summaryBar .sbItem{flex:1;text-align:center;padding:2px 4px;}
+  #summaryBar .sbItem{flex:1;text-align:center;padding:6px 4px;background:#2f1330;border:1px solid #5a2756;border-radius:10px;}
   #summaryBar .sbLabel{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;}
   #summaryBar .sbValue{font-size:13px;font-weight:800;margin-top:2px;}
+
+  /* ---------- Section bar (shown instead of the card menu while a section is open) ---------- */
+  #sectionBar{
+    display:none;align-items:center;gap:10px;padding:8px 12px;
+    background:#2a0f27;border-bottom:1px solid var(--border);
+  }
+  body.in-section #sectionBar{display:flex;}
+  #sectionBack{
+    flex-shrink:0;border:1px solid var(--gold-dim);border-radius:9px;padding:7px 12px;
+    background:#3a1536;color:var(--gold-bright);font-size:12.5px;font-weight:700;
+    position:relative;overflow:hidden;cursor:pointer;
+  }
+  #sectionBack:active{transform:scale(.96);}
+  #sectionIcon{width:30px;height:30px;flex-shrink:0;}
+  #sectionIcon svg{width:100%;height:100%;display:block;overflow:visible;}
+  #sectionTitle{font-size:15px;font-weight:800;color:var(--gold-bright);letter-spacing:.2px;}
+
+  /* ---------- Home: card menu with animated icons ---------- */
+  #tabs,.menuGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:2px 0 8px;}
+  body.in-section #tabs{display:none;}
+  @media (min-width:560px){ #tabs,.menuGrid{grid-template-columns:repeat(4,1fr);gap:12px;} }
+  .menuCard{
+    position:relative;overflow:hidden;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:7px;
+    padding:14px 4px 11px;color:var(--text);font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.2px;
+    background:linear-gradient(160deg, var(--card2), var(--card));
+    border:1px solid var(--border);border-top:3px solid var(--gold-dim);border-radius:14px;
+    box-shadow:0 4px 14px rgba(0,0,0,.35);
+    opacity:0;animation:cardIn .45s ease-out forwards;
+    transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  .menuCard:nth-child(1){animation-delay:.02s}  .menuCard:nth-child(2){animation-delay:.06s}
+  .menuCard:nth-child(3){animation-delay:.10s}  .menuCard:nth-child(4){animation-delay:.14s}
+  .menuCard:nth-child(5){animation-delay:.18s}  .menuCard:nth-child(6){animation-delay:.22s}
+  .menuCard:nth-child(7){animation-delay:.26s}  .menuCard:nth-child(8){animation-delay:.30s}
+  .menuCard:nth-child(9){animation-delay:.34s}  .menuCard:nth-child(10){animation-delay:.38s}
+  .menuCard:nth-child(11){animation-delay:.42s}
+  .menuCard:active{transform:scale(.95);border-color:var(--gold);box-shadow:0 2px 6px rgba(0,0,0,.5);}
+  @keyframes cardIn{ from{opacity:0;transform:translateY(14px) scale(.96);} to{opacity:1;transform:none;} }
+  .mcIcon{width:46px;height:46px;display:block;}
+  .mcIcon svg{width:100%;height:100%;display:block;overflow:visible;}
+
+  /* ---------- Animated icon parts ---------- */
+  .ic *{transform-box:fill-box;}
+  .ic .bar{transform-origin:50% 100%;animation:icBar 2.6s ease-in-out infinite;}
+  .ic .bar.b2{animation-delay:.35s;} .ic .bar.b3{animation-delay:.7s;}
+  @keyframes icBar{ 0%,100%{transform:scaleY(.5);} 50%{transform:scaleY(1);} }
+  .ic .draw{stroke-dasharray:60;animation:icDraw 3s ease-in-out infinite;}
+  @keyframes icDraw{ 0%{stroke-dashoffset:60;} 45%,80%{stroke-dashoffset:0;} 100%{stroke-dashoffset:-60;} }
+  .ic .pencil{animation:icPen 2.4s ease-in-out infinite;}
+  @keyframes icPen{ 0%,100%{transform:translate(0,0) rotate(0);} 25%{transform:translate(-5px,1px) rotate(-6deg);} 50%{transform:translate(-9px,0) rotate(2deg);} 75%{transform:translate(-4px,2px) rotate(-5deg);} }
+  .ic .coinDrop{animation:icDrop 2.2s ease-in infinite;}
+  @keyframes icDrop{ 0%{transform:translateY(-4px);opacity:0;} 15%{opacity:1;} 70%{transform:translateY(17px);opacity:1;} 100%{transform:translateY(20px);opacity:0;} }
+  .ic .arrowIn{animation:icNudgeDown 1.4s ease-in-out infinite;}
+  @keyframes icNudgeDown{ 0%,100%{transform:translateY(-2px);} 50%{transform:translateY(2px);} }
+  .ic .coinOut{animation:icOut 2.2s ease-out infinite;}
+  @keyframes icOut{ 0%{transform:translate(0,6px) scale(.7);opacity:0;} 20%{opacity:1;} 100%{transform:translate(16px,-10px) scale(1);opacity:0;} }
+  .ic .arrowOut{animation:icNudgeOut 1.4s ease-in-out infinite;}
+  @keyframes icNudgeOut{ 0%,100%{transform:translate(-1px,1px);} 50%{transform:translate(2px,-2px);} }
+  .ic .key{animation:icKey 2.7s ease-in-out infinite;}
+  @keyframes icKey{ 0%,100%{opacity:.45;} 12%{opacity:1;} 30%{opacity:.45;} }
+  .ic .tick{stroke-dasharray:32;animation:icTick 2.8s ease-in-out infinite;}
+  @keyframes icTick{ 0%,10%{stroke-dashoffset:32;} 45%,85%{stroke-dashoffset:0;} 100%{stroke-dashoffset:32;} }
+  .ic .col{animation:icCol 2.4s ease-in-out infinite;}
+  .ic .col.c2{animation-delay:.25s;} .ic .col.c3{animation-delay:.5s;} .ic .col.c4{animation-delay:.75s;}
+  @keyframes icCol{ 0%,100%{opacity:.55;} 40%{opacity:1;} }
+  .ic .pulse{transform-origin:50% 50%;animation:icPulse 1.8s ease-in-out infinite;}
+  @keyframes icPulse{ 0%,100%{transform:scale(.8);} 50%{transform:scale(1.35);} }
+  .ic .chev{animation:icChev 1.5s ease-in-out infinite;}
+  .ic .chev.v2{animation-delay:.2s;} .ic .chev.v3{animation-delay:.4s;}
+  @keyframes icChev{ 0%,100%{opacity:.2;transform:translateX(-2px);} 50%{opacity:1;transform:translateX(2px);} }
+  .ic .fly{animation:icFly 2.2s ease-in-out infinite;}
+  @keyframes icFly{ 0%{transform:translateX(-4px);opacity:.2;} 50%{opacity:1;} 100%{transform:translateX(14px);opacity:0;} }
+  .ic .spin{transform-origin:50% 50%;animation:icSpin 7s linear infinite;}
+  .ic .spinRev{transform-origin:50% 50%;animation:icSpin 5s linear infinite reverse;}
+  @keyframes icSpin{ to{transform:rotate(360deg);} }
+  .ic .blink{animation:icBlink 1.6s steps(2,end) infinite;}
+  @keyframes icBlink{ 0%{opacity:1;} 100%{opacity:.25;} }
+  /* ---------- Set-up: cards first, then only the chosen section ---------- */
+  #setup:not(.sub-open) .card{display:none;}
+  #setup.sub-open #setupHome{display:none;}
+  #setup.show-pin .card:not([data-sec="pin"]),
+  #setup.show-protect .card:not([data-sec="protect"]),
+  #setup.show-backup .card:not([data-sec="backup"]),
+  #setup.show-csv .card:not([data-sec="csv"]),
+  #setup.show-sync .card:not([data-sec="sync"]),
+  #setup.show-info .card:not([data-sec="info"]){display:none;}
+  .ic .dotf{animation:icDot 2.4s ease-in-out infinite;}
+  @keyframes icDot{ 0%,8%{opacity:.2;transform:scale(.7);} 22%,70%{opacity:1;transform:scale(1);} 100%{opacity:.2;transform:scale(.7);} }
+  .ic .breath{transform-origin:50% 50%;animation:icBreath 2.6s ease-in-out infinite;}
+  @keyframes icBreath{ 0%,100%{transform:scale(.95);} 50%{transform:scale(1.05);} }
+  .ic .rise{animation:icRise 1.6s ease-in-out infinite;}
+  @keyframes icRise{ 0%,100%{transform:translateY(3px);} 50%{transform:translateY(-3px);} }
+  @media (prefers-reduced-motion: reduce){
+    .menuCard{animation:none;opacity:1;}
+    .ic *{animation:none !important;}
+  }
 
   /* ---------- Background watermark (church logo, faint, behind content) ---------- */
   #bgWatermark{
@@ -218,7 +308,7 @@
   }
 
   @media print{
-    header, nav, .no-print, .toast, #lockScreen{ display:none !important; }
+    header, #tabs, #sectionBar, .no-print, .toast, #lockScreen{ display:none !important; }
     main{ padding:0; max-width:100%; }
     .tab{ display:none !important; }
     #reports{ display:block !important; }
@@ -337,23 +427,79 @@
 
   <div id="summaryBar" class="no-print"></div>
 
-  <nav id="tabs">
-    <button data-tab="dashboard" class="active">Dashboard</button>
-    <button data-tab="notes">Notes</button>
-    <button data-tab="income">Income</button>
-    <button data-tab="expenditure">Expenditure</button>
-    <button data-tab="bankacct">Bank Calc</button>
-    <button data-tab="duescalc">Dues</button>
-    <button data-tab="transactions">Cheque</button>
-    <button data-tab="bankaccount">Bank A/C</button>
-    <button data-tab="remittances">Remittance</button>
-    <button data-tab="reports">Reports</button>
-    <button data-tab="setup">Set-up</button>
-  </nav>
+  <div id="sectionBar" class="no-print">
+    <button id="sectionBack" type="button">&#8592; Menu</button>
+    <span id="sectionIcon"></span>
+    <span id="sectionTitle"></span>
+  </div>
 </div>
 
 <main>
-  <div id="dashboard" class="tab active"></div>
+  <div id="tabs" class="no-print">
+    <button class="menuCard" data-tab="dashboard" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="7" fill="#3a1536" stroke="#a83aa4" stroke-width="1.6"/>
+<rect class="bar b1" x="11" y="22" width="6.5" height="15" rx="1.5" fill="#ffd76a"/>
+<rect class="bar b2" x="20.7" y="14" width="6.5" height="23" rx="1.5" fill="#5fe0a0"/>
+<rect class="bar b3" x="30.5" y="19" width="6.5" height="18" rx="1.5" fill="#c46bc0"/>
+<path class="draw" d="M10 17 L19 11 L28 14 L38 8" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Dashboard</span></button>
+    <button class="menuCard" data-tab="notes" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="5" width="28" height="38" rx="4" fill="#fff6dc" stroke="#c9a227" stroke-width="1.4"/>
+<rect x="8" y="5" width="28" height="7" rx="3.5" fill="#a83aa4"/>
+<path class="draw" d="M13 20 H31 M13 26 H29 M13 32 H25" stroke="#8d7a3a" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+<g class="pencil"><path d="M33 31 L43 21 L47 25 L37 35 L31.5 36.5 Z" fill="#ffd76a" stroke="#c9a227" stroke-width="1.2" stroke-linejoin="round"/><path d="M31.5 36.5 L32.6 32.2 L35.8 35.4 Z" fill="#f5eef2"/></g></svg></span><span class="mcLabel">Notes</span></button>
+    <button class="menuCard" data-tab="income" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 30 H42 L38.5 43 H9.5 Z" fill="#3a1536" stroke="#5fe0a0" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M6 30 H42" stroke="#5fe0a0" stroke-width="2.4"/>
+<g class="coinDrop"><circle cx="24" cy="8" r="7" fill="#ffd76a" stroke="#c9a227" stroke-width="1.4"/><circle cx="24" cy="8" r="3.8" fill="none" stroke="#c9a227" stroke-width="1.2"/></g>
+<path class="arrowIn" d="M24 20 V28 M19.5 24.5 L24 29 L28.5 24.5" fill="none" stroke="#5fe0a0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Income</span></button>
+    <button class="menuCard" data-tab="expenditure" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="19" width="33" height="24" rx="5" fill="#3a1536" stroke="#ff6f80" stroke-width="1.8"/>
+<path d="M5 26 H38" stroke="#ff6f80" stroke-width="1.4" opacity=".55"/>
+<rect x="28" y="30" width="15" height="9" rx="3.5" fill="#ff6f80"/><circle cx="34" cy="34.5" r="1.8" fill="#fff"/>
+<g class="coinOut"><circle cx="18" cy="17" r="6" fill="#ffd76a" stroke="#c9a227" stroke-width="1.3"/><circle cx="18" cy="17" r="3" fill="none" stroke="#c9a227" stroke-width="1.1"/></g>
+<path class="arrowOut" d="M35 15 L43 7 M36.5 7 H43 V13.5" fill="none" stroke="#ff6f80" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Expenditure</span></button>
+    <button class="menuCard" data-tab="bankacct" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="9" y="4" width="30" height="40" rx="5" fill="#2c1428" stroke="#ffd76a" stroke-width="1.8"/>
+<rect x="13" y="8.5" width="22" height="9" rx="2.2" fill="#5fe0a0"/>
+<rect class="blink" x="29" y="10.8" width="2.6" height="4.4" rx=".6" fill="#14532d"/>
+<rect class="key" style="animation-delay:0s" x="13.5" y="21.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:.3s" x="21" y="21.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:.6s" x="28.5" y="21.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:.9s" x="13.5" y="28.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:1.2s" x="21" y="28.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:1.5s" x="28.5" y="28.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:1.8s" x="13.5" y="35.5" width="6.2" height="5" rx="1.4" fill="#c46bc0"/>
+<rect class="key" style="animation-delay:2.1s" x="21" y="35.5" width="6.2" height="5" rx="1.4" fill="#c46bc0"/>
+<rect class="key" style="animation-delay:2.4s" x="28.5" y="35.5" width="6.2" height="5" rx="1.4" fill="#ff6f80"/></svg></span><span class="mcLabel">Bank Calc</span></button>
+    <button class="menuCard" data-tab="duescalc" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="9" width="36" height="34" rx="5" fill="#fff6dc" stroke="#c9a227" stroke-width="1.4"/>
+<path d="M6 14 a5 5 0 0 1 5 -5 H37 a5 5 0 0 1 5 5 V19 H6 Z" fill="#a83aa4"/>
+<rect x="14" y="4.5" width="3.6" height="9" rx="1.8" fill="#ffd76a"/><rect x="30.4" y="4.5" width="3.6" height="9" rx="1.8" fill="#ffd76a"/>
+<path d="M12 25 H36 M12 31 H36 M12 37 H28" stroke="#d9c98e" stroke-width="1.2" stroke-linecap="round"/>
+<path class="tick" d="M15 30 L22 37 L35 22" fill="none" stroke="#1fae6a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Dues</span></button>
+    <button class="menuCard" data-tab="transactions" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="3.5" y="10" width="41" height="28" rx="4" fill="#fff6dc" stroke="#c9a227" stroke-width="1.4"/>
+<path d="M8 17 H28 M8 23 H20" stroke="#b9a56a" stroke-width="1.6" stroke-linecap="round"/>
+<rect x="33" y="14" width="8" height="6" rx="1.2" fill="#a83aa4" opacity=".75"/>
+<path d="M8 31 H17" stroke="#b9a56a" stroke-width="1.2" stroke-linecap="round"/>
+<path class="draw" d="M22 33 C25 24 28 24 28 30 C28 35 32 25 35 29 C37 32 39 30 41 28" fill="none" stroke="#4a0a48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Cheque</span></button>
+    <button class="menuCard" data-tab="bankaccount" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 L44 15 H4 Z" fill="#ffd76a" stroke="#c9a227" stroke-width="1.4" stroke-linejoin="round"/>
+<circle class="pulse" cx="24" cy="11" r="2.6" fill="#4a0a48"/>
+<rect class="col c1" x="8.5" y="18.5" width="5.4" height="17" rx="1" fill="#f5eef2"/>
+<rect class="col c2" x="16.5" y="18.5" width="5.4" height="17" rx="1" fill="#f5eef2"/>
+<rect class="col c3" x="25.5" y="18.5" width="5.4" height="17" rx="1" fill="#f5eef2"/>
+<rect class="col c4" x="33.5" y="18.5" width="5.4" height="17" rx="1" fill="#f5eef2"/>
+<rect x="4.5" y="37" width="39" height="6" rx="1.8" fill="#c46bc0" stroke="#a83aa4" stroke-width="1.2"/></svg></span><span class="mcLabel">Bank A/C</span></button>
+    <button class="menuCard" data-tab="remittances" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="3" y="13" width="26" height="21" rx="3.5" fill="#3a1536" stroke="#c46bc0" stroke-width="1.8"/>
+<path d="M3.8 14.5 L16 25 L28.2 14.5" fill="none" stroke="#c46bc0" stroke-width="1.8" stroke-linejoin="round"/>
+<g class="fly"><circle cx="20" cy="30" r="5.2" fill="#ffd76a" stroke="#c9a227" stroke-width="1.2"/><circle cx="20" cy="30" r="2.6" fill="none" stroke="#c9a227" stroke-width="1"/></g>
+<path class="chev" d="M33 18 L39 24 L33 30" fill="none" stroke="#5fe0a0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<path class="chev v2" d="M39 18 L45 24 L39 30" fill="none" stroke="#5fe0a0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Remittance</span></button>
+    <button class="menuCard" data-tab="reports" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><path d="M10 4 H29 L39 14 V44 H10 Z" fill="#fff6dc" stroke="#c9a227" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M29 4 V14 H39" fill="#eadca3" stroke="#c9a227" stroke-width="1.2" stroke-linejoin="round"/>
+<rect class="bar b1" x="14.5" y="30" width="5" height="9" rx="1" fill="#c46bc0"/>
+<rect class="bar b2" x="22" y="25" width="5" height="14" rx="1" fill="#ffd76a"/>
+<rect class="bar b3" x="29.5" y="28" width="5" height="11" rx="1" fill="#5fe0a0"/>
+<path class="draw" d="M14 22 L21 17 L27 20 L35 13" fill="none" stroke="#a83aa4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Reports</span></button>
+    <button class="menuCard" data-tab="setup" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><g class="spin"><circle cx="21" cy="27" r="12.5" fill="none" stroke="#ffd76a" stroke-width="5.5" stroke-dasharray="4.9 4.9"/><circle cx="21" cy="27" r="10" fill="#ffd76a"/><circle cx="21" cy="27" r="4.2" fill="#2c1428"/></g>
+<g class="spinRev"><circle cx="37" cy="12" r="6.2" fill="none" stroke="#c46bc0" stroke-width="3.6" stroke-dasharray="3.1 3.1"/><circle cx="37" cy="12" r="5" fill="#c46bc0"/><circle cx="37" cy="12" r="2.1" fill="#2c1428"/></g>
+<rect x="31" y="35" width="13" height="10" rx="2.4" fill="#ff6f80" stroke="#fff" stroke-width="1"/>
+<path d="M34 35 V32.5 a3.5 3.5 0 0 1 7 0 V35" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="mcLabel">Set-up</span></button>
+  </div>
+  <div id="dashboard" class="tab"></div>
   <div id="notes" class="tab"></div>
   <div id="income" class="tab"></div>
   <div id="expenditure" class="tab"></div>
@@ -364,6 +510,26 @@
   <div id="remittances" class="tab"></div>
   <div id="reports" class="tab"></div>
   <div id="setup" class="tab">
+    <div id="setupHome" class="menuGrid no-print">
+      <button class="menuCard" data-sub="pin" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="6" width="34" height="36" rx="7" fill="#3a1536" stroke="#ffd76a" stroke-width="1.8"/>
+<circle class="dotf" style="animation-delay:0s" cx="15" cy="17" r="3.2" fill="#ffd76a"/><circle class="dotf" style="animation-delay:.4s" cx="22" cy="17" r="3.2" fill="#ffd76a"/><circle class="dotf" style="animation-delay:.8s" cx="29" cy="17" r="3.2" fill="#ffd76a"/><circle class="dotf" style="animation-delay:1.2s" cx="36" cy="17" r="3.2" fill="#ffd76a"/>
+<g fill="#c46bc0" opacity=".85"><circle cx="15" cy="27" r="2.2"/><circle cx="24" cy="27" r="2.2"/><circle cx="33" cy="27" r="2.2"/><circle cx="15" cy="35" r="2.2"/><circle cx="24" cy="35" r="2.2"/><circle cx="33" cy="35" r="2.2"/></g></svg></span><span class="mcLabel">Set-up PIN</span></button>
+      <button class="menuCard" data-sub="protect" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><g class="breath"><path d="M24 4 L40 10 V23 C40 33 33 40 24 44 C15 40 8 33 8 23 V10 Z" fill="#3a1536" stroke="#5fe0a0" stroke-width="2.2" stroke-linejoin="round"/></g>
+<path class="tick" d="M16 24 L22 30 L33 17" fill="none" stroke="#5fe0a0" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Edit Protection</span></button>
+      <button class="menuCard" data-sub="backup" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><path d="M14 36 a8.5 8.5 0 0 1 -0.5 -17 a11 11 0 0 1 21 3 a7 7 0 0 1 -0.5 14 Z" fill="#3a1536" stroke="#c46bc0" stroke-width="2" stroke-linejoin="round"/>
+<g class="rise"><path d="M24 40 V23 M17.5 29 L24 22.5 L30.5 29" fill="none" stroke="#ffd76a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span class="mcLabel">Backup &amp; Restore</span></button>
+      <button class="menuCard" data-sub="csv" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="4" width="32" height="34" rx="3.5" fill="#fff6dc" stroke="#c9a227" stroke-width="1.4"/>
+<path d="M6 7.5 a3.5 3.5 0 0 1 3.5 -3.5 H34.5 a3.5 3.5 0 0 1 3.5 3.5 V14 H6 Z" fill="#1fae6a"/>
+<path d="M6 21 H38 M6 28 H38 M16.7 14 V38 M27.3 14 V38" stroke="#cdb86b" stroke-width="1.2"/>
+<g class="arrowIn"><path d="M37 30 V44 M30.5 38 L37 44.5 L43.5 38" fill="none" stroke="#ff9f43" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span class="mcLabel">Export CSV</span></button>
+      <button class="menuCard" data-sub="sync" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><g class="spin"><path d="M9 25 A15 15 0 0 1 35 14" fill="none" stroke="#5fe0a0" stroke-width="3.6" stroke-linecap="round"/><path d="M36 6 V15 H27" fill="none" stroke="#5fe0a0" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M39 23 A15 15 0 0 1 13 34" fill="none" stroke="#ffd76a" stroke-width="3.6" stroke-linecap="round"/><path d="M12 42 V33 H21" fill="none" stroke="#ffd76a" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></g>
+<circle class="pulse" cx="24" cy="24" r="3.4" fill="#c46bc0"/></svg></span><span class="mcLabel">Sync</span></button>
+      <button class="menuCard" data-sub="info" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="12" y="3" width="24" height="42" rx="5" fill="#3a1536" stroke="#a83aa4" stroke-width="2"/>
+<rect x="21" y="6.5" width="6" height="1.8" rx=".9" fill="#a83aa4"/>
+<g class="pulse"><circle cx="24" cy="26" r="9.5" fill="#ffd76a"/></g>
+<circle cx="24" cy="21.6" r="1.8" fill="#4a0a48"/><rect x="22.6" y="25" width="2.8" height="8.4" rx="1.3" fill="#4a0a48"/></svg></span><span class="mcLabel">App Info</span></button>
+    </div>
     <div id="setupPinCard"></div>
     <div id="exportdata"></div>
     <div id="syncdata"></div>
@@ -428,9 +594,9 @@
     });
   }
 
-  /* ---------- Touch ripple feedback on buttons / nav / entry cards ---------- */
+  /* ---------- Touch ripple feedback on buttons / menu cards / entry cards ---------- */
   document.addEventListener("pointerdown", (e)=>{
-    const el = e.target.closest(".btn, nav button, .entrycard, .keyBtn");
+    const el = e.target.closest(".btn, .menuCard, #sectionBack, .entrycard, .keyBtn");
     if(!el) return;
     const rect = el.getBoundingClientRect();
     const ripple = document.createElement("span");
