@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>UBC Finance</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a0018">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="UBC Finance">
+<link rel="icon" href="icons/icon-192.png">
+
+<style>
+  :root{
+    --bg:#150013; --bg2:#1c0019; --card:#241021; --card2:#2c1428;
+    --purple:#7a1077; --purple-deep:#4a0a48; --purple-light:#a83aa4;
+    --gold:#e8c34a; --gold-bright:#ffd76a; --gold-dim:#c9a227;
+    --text:#f5eef2; --muted:#c3a7bd; --muted2:#9c8098; --border:#452041;
+    --in:#5fe0a0; --out:#ff6f80;
+    --card-radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;font-family:-apple-system,Roboto,Segoe UI,Arial,sans-serif;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(122,16,119,.35), transparent 55%),
+      radial-gradient(circle at 100% 20%, rgba(232,195,74,.10), transparent 45%),
+      var(--bg);
+    color:var(--text); min-height:100%;
+  }
+
+  /* ---------- Fixed top area: header + reminder + summary + tabs, all pinned together ---------- */
+  #topBar{ position:sticky; top:0; z-index:20; }
+
+  /* ---------- Header w/ 3D spinning globe logo ---------- */
+  header{
+    background:linear-gradient(135deg, var(--purple-deep), var(--bg2) 70%);
+    color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;
+    box-shadow:0 3px 12px rgba(0,0,0,.5);
+    border-bottom:1px solid var(--border);
+  }
+  .logo-globe-outer{ perspective:400px; width:48px;height:48px;flex-shrink:0; }
+  .logo-globe{
+    width:100%;height:100%;border-radius:50%;overflow:hidden;position:relative;
+    animation:globeSpinY 7s linear infinite;
+    transform-style:preserve-3d;
+    box-shadow:0 2px 10px rgba(0,0,0,.55), inset -9px -9px 16px rgba(0,0,0,.6), inset 6px 6px 10px rgba(255,255,255,.15);
+  }
+  .logo-globe img{ width:100%;height:100%;object-fit:cover;display:block; }
+  .logo-globe::after{
+    content:"";position:absolute;inset:0;border-radius:50%;
+    background:linear-gradient(120deg, transparent 32%, rgba(255,255,255,.4) 50%, transparent 62%);
+    animation:sheenSweep 3.4s linear infinite; mix-blend-mode:overlay;
+  }
+  @keyframes globeSpinY{ from{transform:rotateY(0deg);} to{transform:rotateY(360deg);} }
+  @keyframes sheenSweep{ from{transform:translateX(-120%);} to{transform:translateX(120%);} }
+
+  header .htext{flex:1;min-width:0;}
+  header h1{margin:0;font-size:15px;font-weight:700;letter-spacing:.2px;}
+  header p{margin:2px 0 0;font-size:10.5px;opacity:.75;color:var(--gold-bright);}
+  #installAppBtn{
+    flex-shrink:0;border:none;border-radius:9px;padding:8px 12px;font-size:11.5px;font-weight:700;
+    background:linear-gradient(135deg, var(--gold-dim), var(--gold-bright));color:#221a06;
+    box-shadow:0 3px 10px rgba(232,195,74,.35);cursor:pointer;
+  }
+  #installAppBtn:active{ transform:scale(.96); filter:brightness(.9); }
+
+  /* ---------- Fixed summary bar (solid — nothing shows through it) ---------- */
+  #summaryBar{
+    display:flex;background:#1c0019;border-bottom:1px solid var(--border);
+    padding:8px 10px;gap:8px;
+  }
+  #summaryBar .sbItem{flex:1;text-align:center;padding:6px 4px;background:#2f1330;border:1px solid #5a2756;border-radius:10px;}
+  #summaryBar .sbLabel{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;}
+  #summaryBar .sbValue{font-size:13px;font-weight:800;margin-top:2px;}
+
+  /* ---------- Section bar (shown instead of the card menu while a section is open) ---------- */
+  #sectionBar{
+    display:none;align-items:center;gap:10px;padding:8px 12px;
+    background:#2a0f27;border-bottom:1px solid var(--border);
+  }
+  body.in-section #sectionBar{display:flex;}
+  #sectionBack{
+    flex-shrink:0;border:1px solid var(--gold-dim);border-radius:9px;padding:7px 12px;
+    background:#3a1536;color:var(--gold-bright);font-size:12.5px;font-weight:700;
+    position:relative;overflow:hidden;cursor:pointer;
+  }
+  #sectionBack:active{transform:scale(.96);}
+  #sectionIcon{width:30px;height:30px;flex-shrink:0;}
+  #sectionIcon svg{width:100%;height:100%;display:block;overflow:visible;}
+  #sectionTitle{font-size:15px;font-weight:800;color:var(--gold-bright);letter-spacing:.2px;}
+
+  /* ---------- Home: card menu with animated icons ---------- */
+  #tabs,.menuGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:2px 0 8px;}
+  body.in-section #tabs{display:none;}
+  @media (min-width:560px){ #tabs,.menuGrid{grid-template-columns:repeat(4,1fr);gap:12px;} }
+  .menuCard{
+    position:relative;overflow:hidden;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:7px;
+    padding:14px 4px 11px;color:var(--text);font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.2px;
+    background:linear-gradient(160deg, var(--card2), var(--card));
+    border:1px solid var(--border);border-top:3px solid var(--gold-dim);border-radius:14px;
+    box-shadow:0 4px 14px rgba(0,0,0,.35);
+    opacity:0;animation:cardIn .45s ease-out forwards;
+    transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  .menuCard:nth-child(1){animation-delay:.02s}  .menuCard:nth-child(2){animation-delay:.06s}
+  .menuCard:nth-child(3){animation-delay:.10s}  .menuCard:nth-child(4){animation-delay:.14s}
+  .menuCard:nth-child(5){animation-delay:.18s}  .menuCard:nth-child(6){animation-delay:.22s}
+  .menuCard:nth-child(7){animation-delay:.26s}  .menuCard:nth-child(8){animation-delay:.30s}
+  .menuCard:nth-child(9){animation-delay:.34s}  .menuCard:nth-child(10){animation-delay:.38s}
+  .menuCard:nth-child(11){animation-delay:.42s}
+  .menuCard:active{transform:scale(.95);border-color:var(--gold);box-shadow:0 2px 6px rgba(0,0,0,.5);}
+  @keyframes cardIn{ from{opacity:0;transform:translateY(14px) scale(.96);} to{opacity:1;transform:none;} }
+  .mcIcon{width:46px;height:46px;display:block;}
+  .mcIcon svg{width:100%;height:100%;display:block;overflow:visible;}
+
+  /* ---------- Animated icon parts ---------- */
+  .ic *{transform-box:fill-box;}
+  .ic .bar{transform-origin:50% 100%;animation:icBar 2.6s ease-in-out infinite;}
+  .ic .bar.b2{animation-delay:.35s;} .ic .bar.b3{animation-delay:.7s;}
+  @keyframes icBar{ 0%,100%{transform:scaleY(.5);} 50%{transform:scaleY(1);} }
+  .ic .draw{stroke-dasharray:60;animation:icDraw 3s ease-in-out infinite;}
+  @keyframes icDraw{ 0%{stroke-dashoffset:60;} 45%,80%{stroke-dashoffset:0;} 100%{stroke-dashoffset:-60;} }
+  .ic .pencil{animation:icPen 2.4s ease-in-out infinite;}
+  @keyframes icPen{ 0%,100%{transform:translate(0,0) rotate(0);} 25%{transform:translate(-5px,1px) rotate(-6deg);} 50%{transform:translate(-9px,0) rotate(2deg);} 75%{transform:translate(-4px,2px) rotate(-5deg);} }
+  .ic .coinDrop{animation:icDrop 2.2s ease-in infinite;}
+  @keyframes icDrop{ 0%{transform:translateY(-4px);opacity:0;} 15%{opacity:1;} 70%{transform:translateY(17px);opacity:1;} 100%{transform:translateY(20px);opacity:0;} }
+  .ic .arrowIn{animation:icNudgeDown 1.4s ease-in-out infinite;}
+  @keyframes icNudgeDown{ 0%,100%{transform:translateY(-2px);} 50%{transform:translateY(2px);} }
+  .ic .coinOut{animation:icOut 2.2s ease-out infinite;}
+  @keyframes icOut{ 0%{transform:translate(0,6px) scale(.7);opacity:0;} 20%{opacity:1;} 100%{transform:translate(16px,-10px) scale(1);opacity:0;} }
+  .ic .arrowOut{animation:icNudgeOut 1.4s ease-in-out infinite;}
+  @keyframes icNudgeOut{ 0%,100%{transform:translate(-1px,1px);} 50%{transform:translate(2px,-2px);} }
+  .ic .key{animation:icKey 2.7s ease-in-out infinite;}
+  @keyframes icKey{ 0%,100%{opacity:.45;} 12%{opacity:1;} 30%{opacity:.45;} }
+  .ic .tick{stroke-dasharray:32;animation:icTick 2.8s ease-in-out infinite;}
+  @keyframes icTick{ 0%,10%{stroke-dashoffset:32;} 45%,85%{stroke-dashoffset:0;} 100%{stroke-dashoffset:32;} }
+  .ic .col{animation:icCol 2.4s ease-in-out infinite;}
+  .ic .col.c2{animation-delay:.25s;} .ic .col.c3{animation-delay:.5s;} .ic .col.c4{animation-delay:.75s;}
+  @keyframes icCol{ 0%,100%{opacity:.55;} 40%{opacity:1;} }
+  .ic .pulse{transform-origin:50% 50%;animation:icPulse 1.8s ease-in-out infinite;}
+  @keyframes icPulse{ 0%,100%{transform:scale(.8);} 50%{transform:scale(1.35);} }
+  .ic .chev{animation:icChev 1.5s ease-in-out infinite;}
+  .ic .chev.v2{animation-delay:.2s;} .ic .chev.v3{animation-delay:.4s;}
+  @keyframes icChev{ 0%,100%{opacity:.2;transform:translateX(-2px);} 50%{opacity:1;transform:translateX(2px);} }
+  .ic .fly{animation:icFly 2.2s ease-in-out infinite;}
+  @keyframes icFly{ 0%{transform:translateX(-4px);opacity:.2;} 50%{opacity:1;} 100%{transform:translateX(14px);opacity:0;} }
+  .ic .spin{transform-origin:50% 50%;animation:icSpin 7s linear infinite;}
+  .ic .spinRev{transform-origin:50% 50%;animation:icSpin 5s linear infinite reverse;}
+  @keyframes icSpin{ to{transform:rotate(360deg);} }
+  .ic .blink{animation:icBlink 1.6s steps(2,end) infinite;}
+  @keyframes icBlink{ 0%{opacity:1;} 100%{opacity:.25;} }
+  /* ---------- Set-up: cards first, then only the chosen section ---------- */
+  #setup:not(.sub-open) .card{display:none;}
+  #setup.sub-open #setupHome{display:none;}
+  #setup.show-pin .card:not([data-sec="pin"]),
+  #setup.show-protect .card:not([data-sec="protect"]),
+  #setup.show-backup .card:not([data-sec="backup"]),
+  #setup.show-csv .card:not([data-sec="csv"]),
+  #setup.show-sync .card:not([data-sec="sync"]),
+  #setup.show-info .card:not([data-sec="info"]){display:none;}
+  .ic .dotf{animation:icDot 2.4s ease-in-out infinite;}
+  @keyframes icDot{ 0%,8%{opacity:.2;transform:scale(.7);} 22%,70%{opacity:1;transform:scale(1);} 100%{opacity:.2;transform:scale(.7);} }
+  .ic .breath{transform-origin:50% 50%;animation:icBreath 2.6s ease-in-out infinite;}
+  @keyframes icBreath{ 0%,100%{transform:scale(.95);} 50%{transform:scale(1.05);} }
+  .ic .rise{animation:icRise 1.6s ease-in-out infinite;}
+  @keyframes icRise{ 0%,100%{transform:translateY(3px);} 50%{transform:translateY(-3px);} }
+  @media (prefers-reduced-motion: reduce){
+    .menuCard{animation:none;opacity:1;}
+    .ic *{animation:none !important;}
+  }
+
+  /* ---------- Background watermark (church logo, faint, behind content) ---------- */
+  #bgWatermark{
+    position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:url("img/logo.jpg") center 40% / 220px no-repeat;
+    opacity:.05;
+  }
+
+  /* ---------- Floating quick-add button ---------- */
+  #quickAddBtn{
+    position:fixed;right:18px;bottom:22px;z-index:50;width:56px;height:56px;border-radius:50%;
+    border:none;font-size:28px;font-weight:400;line-height:1;color:#221a06;
+    background:linear-gradient(135deg, var(--gold-dim), var(--gold-bright));
+    opacity:.82;box-shadow:0 4px 16px rgba(0,0,0,.5);
+  }
+  #quickAddBtn:active{ transform:scale(.94); opacity:1; }
+  #quickAddOverlay{
+    position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);
+    display:flex;align-items:flex-end;justify-content:center;
+  }
+  #quickAddModal{
+    width:100%;max-width:480px;background:linear-gradient(160deg, var(--card), var(--card2));
+    border:1px solid var(--border);border-radius:16px 16px 0 0;padding:18px 16px 26px;
+    box-shadow:0 -6px 24px rgba(0,0,0,.5);
+  }
+  #quickAddModal h2{margin:0 0 10px;font-size:16px;color:var(--gold-bright);}
+
+  main{padding:12px;padding-bottom:60px;max-width:900px;margin:0 auto;}
+  .tab{display:none;}
+  .tab.active{display:block;}
+
+  .card{
+    background:linear-gradient(160deg, var(--card), var(--card2));
+    border:1px solid var(--border);border-radius:var(--card-radius);
+    padding:14px;margin-bottom:12px;box-shadow:0 4px 14px rgba(0,0,0,.35);
+  }
+  .card h2{margin:0 0 10px;font-size:15px;color:var(--gold-bright);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;margin-top:8px;font-weight:600;}
+  input,select,textarea{
+    width:100%;padding:10px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;
+    background:rgba(0,0,0,.28);color:var(--text); transition:border-color .15s, box-shadow .15s;
+    font-family:inherit;
+  }
+  input::placeholder,textarea::placeholder{color:var(--muted2);}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,195,74,.18);}
+  select option{background:#241021;color:var(--text);}
+
+  button.btn{
+    background:linear-gradient(135deg, var(--purple), var(--purple-light));
+    color:#fff;border:none;padding:12px 16px;border-radius:9px;font-size:14px;font-weight:700;
+    margin-top:12px;width:100%;position:relative;overflow:hidden;
+    box-shadow:0 3px 10px rgba(122,16,119,.4);
+    transition:transform .1s ease, box-shadow .1s ease, filter .1s ease;
+  }
+  button.btn:active{ transform:scale(.965); filter:brightness(.88); box-shadow:0 1px 4px rgba(0,0,0,.4); }
+  button.btn.secondary{background:rgba(255,255,255,.05);color:var(--gold-bright);border:1px solid var(--gold-dim);box-shadow:none;}
+  button.btn.secondary:active{ background:rgba(232,195,74,.12); }
+  button.btn.danger{background:linear-gradient(135deg, #7a1030, #a3213f);box-shadow:0 3px 10px rgba(163,33,63,.4);}
+  button.btn.gold{background:linear-gradient(135deg, var(--gold-dim), var(--gold-bright));color:#221a06;box-shadow:0 3px 10px rgba(232,195,74,.35);}
+  button.btn.small{width:auto;padding:7px 12px;font-size:12px;margin-top:0;}
+
+  .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.5);
+    transform:scale(0);animation:rippleAnim .5s ease-out; pointer-events:none;}
+  @keyframes rippleAnim{ to{ transform:scale(2.6); opacity:0; } }
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--border);}
+  th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.3px;}
+  .stat{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--border);font-size:13.5px;}
+  .stat b{color:var(--gold-bright);}
+  .entrycard{
+    padding:11px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;
+    background:rgba(255,255,255,.03); position:relative;overflow:hidden;
+    transition:background .15s;
+  }
+  .entrycard:active{ background:rgba(255,255,255,.07); }
+  .entrycard .meta{font-size:12px;color:var(--muted);margin-top:2px;}
+  .section-title{font-size:12px;font-weight:700;color:var(--gold-bright);margin:14px 0 4px;text-transform:uppercase;letter-spacing:.4px;}
+  .empty{color:var(--muted);font-size:13px;padding:16px 0;text-align:center;}
+  .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    background:linear-gradient(135deg,#2c1428,#4a0a48);color:#fff;padding:11px 18px;border-radius:22px;
+    font-size:13px;z-index:950;opacity:0;transition:opacity .25s;pointer-events:none;
+    border:1px solid var(--gold-dim); box-shadow:0 4px 16px rgba(0,0,0,.5);}
+  .toast.show{opacity:1;}
+  .amt-in{color:var(--in);font-weight:700;}
+  .amt-out{color:var(--out);font-weight:700;}
+  .searchbox{margin-bottom:10px;}
+  .pill{display:inline-block;background:rgba(232,195,74,.12);color:var(--gold-bright);
+    border:1px solid var(--gold-dim); border-radius:20px;padding:2px 9px;font-size:11px;margin-top:4px;margin-right:4px;}
+
+  /* ---------- Report preview (paper view) ---------- */
+  #pvOverlay{ position:fixed; inset:0; z-index:900; display:none; flex-direction:column; background:#2b2b30; }
+  #pvOverlay.show{ display:flex; }
+  body.pv-open{ overflow:hidden; }
+  .pv-bar{ display:flex; align-items:center; gap:10px; padding:10px 12px; padding-top:max(10px, env(safe-area-inset-top));
+    background:linear-gradient(135deg, var(--purple-deep), var(--bg2) 70%); border-bottom:1px solid var(--border); }
+  .pv-title{ flex:1; min-width:0; font-size:13px; font-weight:700; color:var(--gold-bright); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pv-btn{ border:1px solid var(--gold-dim); background:transparent; color:var(--gold-bright); border-radius:9px; padding:9px 14px; font-size:13px; font-weight:700; cursor:pointer; }
+  .pv-btn:active{ transform:scale(.96); }
+  .pv-primary{ background:var(--purple); border-color:var(--purple); color:#fff; }
+  .pv-gold{ background:linear-gradient(135deg, var(--gold-dim), var(--gold-bright)); color:#221a06; border-color:transparent; }
+  .pv-scroll{ flex:1; overflow:auto; -webkit-overflow-scrolling:touch; padding:14px 10px 18px; }
+  .pv-paper{ background:#fff; color:#111; max-width:640px; margin:0 auto; padding:26px 22px 30px; box-shadow:0 8px 28px rgba(0,0,0,.65);
+    font-family:Helvetica, Arial, sans-serif; font-size:13px; line-height:1.45; }
+  .pv-head{ text-align:center; margin-bottom:12px; }
+  .pv-head img{ width:64px; height:64px; border-radius:50%; display:block; margin:0 auto 6px; }
+  .pv-head .pv-name{ font-size:17px; font-weight:700; letter-spacing:.2px; }
+  .pv-head .pv-est{ font-size:11px; }
+  .pv-head .pv-sub{ font-size:12.5px; margin-top:2px; }
+  .pv-row{ display:flex; justify-content:space-between; gap:14px; padding:2px 0; }
+  .pv-row span:last-child{ white-space:nowrap; text-align:right; }
+  .pv-bold{ font-weight:700; }
+  .pv-h{ font-weight:700; font-size:14px; margin-top:16px; padding-bottom:3px; border-bottom:1px solid #111; }
+  .pv-rule{ border-top:1px solid #777; margin:3px 0; }
+  .pv-note{ font-size:11px; margin-top:10px; line-height:1.6; }
+  .pv-final{ margin-top:16px; font-size:14px; }
+  .pv-empty{ font-size:12px; color:#555; padding:2px 0; }
+  .pv-actions{ display:flex; gap:8px; padding:10px 12px; padding-bottom:max(10px, env(safe-area-inset-bottom)); background:var(--bg2); border-top:1px solid var(--border); }
+  .pv-actions .pv-btn{ flex:1; }
+
+  @media print{
+    @page{ margin:14mm; }
+    /* Printing while the preview is open prints ONLY the paper sheet */
+    body.pv-open > *:not(#pvOverlay){ display:none !important; }
+    body.pv-open{ background:#fff !important; overflow:visible; }
+    body.pv-open #pvOverlay{ position:static !important; display:block !important; background:#fff; }
+    body.pv-open .pv-bar, body.pv-open .pv-actions{ display:none !important; }
+    body.pv-open .pv-scroll{ overflow:visible; padding:0; }
+    body.pv-open .pv-paper{ box-shadow:none; max-width:none; margin:0; padding:0; }
+    body.pv-open .pv-head img{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
+
+  @media print{
+    header, #tabs, #sectionBar, .no-print, .toast, #lockScreen{ display:none !important; }
+    main{ padding:0; max-width:100%; }
+    .tab{ display:none !important; }
+    #reports{ display:block !important; }
+    #reportPreview{ display:block !important; border:none; background:#fff; color:#000; position:relative; }
+    #reportPreview::before{
+      content:""; position:fixed; inset:0;
+      background:url("img/logo.jpg") center / 260px no-repeat;
+      opacity:.08; z-index:-1;
+    }
+    body{ background:#fff; color:#000; }
+    .card h2, .amt-in, .amt-out{ color:#000 !important; }
+  }
+
+  /* ---------- Lock screen ---------- */
+  #lockScreen{
+    position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:
+      radial-gradient(circle at 20% 10%, rgba(122,16,119,.5), transparent 55%),
+      radial-gradient(circle at 85% 85%, rgba(232,195,74,.12), transparent 45%),
+      var(--bg);
+    padding:24px;text-align:center;
+  }
+  #lockScreen.hidden{display:none;}
+  .lock-globe-outer{ perspective:500px; width:84px;height:84px;margin-bottom:18px; }
+  .lock-globe{ width:100%;height:100%;border-radius:50%;overflow:hidden;position:relative;
+    animation:globeSpinY 7s linear infinite; transform-style:preserve-3d;
+    box-shadow:0 4px 20px rgba(0,0,0,.6), inset -14px -14px 24px rgba(0,0,0,.6), inset 8px 8px 16px rgba(255,255,255,.15); }
+  .lock-globe img{width:100%;height:100%;object-fit:cover;display:block;}
+  .lock-globe::after{ content:"";position:absolute;inset:0;border-radius:50%;
+    background:linear-gradient(120deg, transparent 32%, rgba(255,255,255,.4) 50%, transparent 62%);
+    animation:sheenSweep 3.4s linear infinite; mix-blend-mode:overlay; }
+  #lockScreen h1{font-size:15px;margin:0 0 2px;letter-spacing:.3px;}
+  #lockScreen p.sub{font-size:11px;color:var(--gold-bright);opacity:.85;margin:0 0 22px;}
+  #lockDots{display:flex;gap:14px;margin-bottom:22px;}
+  .lockDot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--gold-dim);background:transparent;transition:background .15s, transform .15s;}
+  .lockDot.filled{background:var(--gold-bright);transform:scale(1.15);}
+  #lockScreen.shake #lockDots{animation:shakeErr .4s;}
+  @keyframes shakeErr{ 0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);} 40%{transform:translateX(8px);} 60%{transform:translateX(-6px);} 80%{transform:translateX(6px);} }
+  #lockError{font-size:12px;color:var(--out);height:16px;margin-bottom:8px;}
+  #keypad{display:grid;grid-template-columns:repeat(3,64px);gap:12px;}
+  .keyBtn{
+    width:64px;height:64px;border-radius:50%;border:1px solid var(--border);
+    background:rgba(255,255,255,.04);color:var(--text);font-size:20px;font-weight:600;
+    position:relative;overflow:hidden;transition:background .12s, transform .1s;
+  }
+  .keyBtn:active{background:rgba(232,195,74,.18);transform:scale(.94);}
+  .keyBtn.keyClear{font-size:12px;color:var(--muted);}
+  .keyBtn.keySpacer{visibility:hidden;}
+  /* ---------- Set-up PIN overlay ---------- */
+  #setupLock{
+    position:fixed;inset:0;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:var(--bg);padding:24px;text-align:center;
+  }
+  #setupLock.hidden{display:none;}
+  #setupLock h1{font-size:16px;margin:0 0 2px;color:var(--gold-bright);}
+  #setupLock p.sub{font-size:11.5px;color:var(--muted);margin:0 0 20px;}
+  #setupDots{display:flex;gap:14px;margin-bottom:18px;}
+  #setupLock.shake #setupDots{animation:shakeErr .4s;}
+  #setupLockError{font-size:12px;color:var(--out);height:16px;margin-bottom:8px;}
+  #setupKeypad{display:grid;grid-template-columns:repeat(3,64px);gap:12px;}
+</style>
+</head>
+<body>
+
+<div id="bgWatermark" class="no-print" aria-hidden="true"></div>
+
+<!-- ================= SET-UP PIN ================= -->
+<div id="setupLock" class="hidden no-print">
+  <h1>Set-up</h1>
+  <p class="sub">Enter the Set-up PIN</p>
+  <div id="setupDots"><div class="lockDot"></div><div class="lockDot"></div><div class="lockDot"></div><div class="lockDot"></div></div>
+  <div id="setupLockError"></div>
+  <div id="setupKeypad">
+    <button class="keyBtn" data-k="1">1</button><button class="keyBtn" data-k="2">2</button><button class="keyBtn" data-k="3">3</button>
+    <button class="keyBtn" data-k="4">4</button><button class="keyBtn" data-k="5">5</button><button class="keyBtn" data-k="6">6</button>
+    <button class="keyBtn" data-k="7">7</button><button class="keyBtn" data-k="8">8</button><button class="keyBtn" data-k="9">9</button>
+    <button class="keyBtn keyClear" data-k="cancel">Cancel</button><button class="keyBtn" data-k="0">0</button><button class="keyBtn keyClear" data-k="clear">Clear</button>
+  </div>
+</div>
+
+<!-- ================= LOCK SCREEN ================= -->
+<div id="lockScreen">
+  <div class="lock-globe-outer"><div class="lock-globe"><img src="img/logo.jpg" alt="Church logo"></div></div>
+  <h1>UNIVERSITY BAPTIST CHURCH, OTUOKE</h1>
+  <p class="sub">Finance — enter PIN to unlock</p>
+  <p class="sub" style="font-size:11px;opacity:.7;margin-top:-6px;">Version 1.5</p>
+  <div id="lockDots">
+    <div class="lockDot"></div><div class="lockDot"></div><div class="lockDot"></div><div class="lockDot"></div>
+  </div>
+  <div id="lockError"></div>
+  <div id="keypad">
+    <button class="keyBtn" data-k="1">1</button>
+    <button class="keyBtn" data-k="2">2</button>
+    <button class="keyBtn" data-k="3">3</button>
+    <button class="keyBtn" data-k="4">4</button>
+    <button class="keyBtn" data-k="5">5</button>
+    <button class="keyBtn" data-k="6">6</button>
+    <button class="keyBtn" data-k="7">7</button>
+    <button class="keyBtn" data-k="8">8</button>
+    <button class="keyBtn" data-k="9">9</button>
+    <div class="keyBtn keySpacer"></div>
+    <button class="keyBtn" data-k="0">0</button>
+    <button class="keyBtn keyClear" data-k="clear">Clear</button>
+  </div>
+</div>
+
+<div id="topBar">
+  <header>
+    <div class="logo-globe-outer"><div class="logo-globe"><img src="img/logo.jpg" alt="University Baptist Church, Otuoke logo"></div></div>
+    <div class="htext">
+      <h1>UNIVERSITY BAPTIST CHURCH, OTUOKE</h1>
+      <p>Kingdom Citizens · Est. Oct. 2015 · Finance — works fully offline once loaded</p>
+    </div>
+    <button id="installAppBtn" style="display:none;">⬇ Install App</button>
+  </header>
+
+  <div id="summaryBar" class="no-print"></div>
+
+  <div id="sectionBar" class="no-print">
+    <button id="sectionBack" type="button">&#8592; Menu</button>
+    <span id="sectionIcon"></span>
+    <span id="sectionTitle"></span>
+  </div>
+</div>
+
+<main>
+  <div id="tabs" class="no-print">
+    <button class="menuCard" data-tab="dashboard" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="7" fill="#3a1536" stroke="#a83aa4" stroke-width="1.6"/>
+<rect class="bar b1" x="11" y="22" width="6.5" height="15" rx="1.5" fill="#ffd76a"/>
+<rect class="bar b2" x="20.7" y="14" width="6.5" height="23" rx="1.5" fill="#5fe0a0"/>
+<rect class="bar b3" x="30.5" y="19" width="6.5" height="18" rx="1.5" fill="#c46bc0"/>
+<path class="draw" d="M10 17 L19 11 L28 14 L38 8" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Dashboard</span></button>
+    <button class="menuCard" data-tab="notes" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="5" width="28" height="38" rx="4" fill="#fff6dc" stroke="#c9a227" stroke-width="1.4"/>
+<rect x="8" y="5" width="28" height="7" rx="3.5" fill="#a83aa4"/>
+<path class="draw" d="M13 20 H31 M13 26 H29 M13 32 H25" stroke="#8d7a3a" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+<g class="pencil"><path d="M33 31 L43 21 L47 25 L37 35 L31.5 36.5 Z" fill="#ffd76a" stroke="#c9a227" stroke-width="1.2" stroke-linejoin="round"/><path d="M31.5 36.5 L32.6 32.2 L35.8 35.4 Z" fill="#f5eef2"/></g></svg></span><span class="mcLabel">Notes</span></button>
+    <button class="menuCard" data-tab="income" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 30 H42 L38.5 43 H9.5 Z" fill="#3a1536" stroke="#5fe0a0" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M6 30 H42" stroke="#5fe0a0" stroke-width="2.4"/>
+<g class="coinDrop"><circle cx="24" cy="8" r="7" fill="#ffd76a" stroke="#c9a227" stroke-width="1.4"/><circle cx="24" cy="8" r="3.8" fill="none" stroke="#c9a227" stroke-width="1.2"/></g>
+<path class="arrowIn" d="M24 20 V28 M19.5 24.5 L24 29 L28.5 24.5" fill="none" stroke="#5fe0a0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Income</span></button>
+    <button class="menuCard" data-tab="expenditure" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="19" width="33" height="24" rx="5" fill="#3a1536" stroke="#ff6f80" stroke-width="1.8"/>
+<path d="M5 26 H38" stroke="#ff6f80" stroke-width="1.4" opacity=".55"/>
+<rect x="28" y="30" width="15" height="9" rx="3.5" fill="#ff6f80"/><circle cx="34" cy="34.5" r="1.8" fill="#fff"/>
+<g class="coinOut"><circle cx="18" cy="17" r="6" fill="#ffd76a" stroke="#c9a227" stroke-width="1.3"/><circle cx="18" cy="17" r="3" fill="none" stroke="#c9a227" stroke-width="1.1"/></g>
+<path class="arrowOut" d="M35 15 L43 7 M36.5 7 H43 V13.5" fill="none" stroke="#ff6f80" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Expenditure</span></button>
+    <button class="menuCard" data-tab="bankacct" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="9" y="4" width="30" height="40" rx="5" fill="#2c1428" stroke="#ffd76a" stroke-width="1.8"/>
+<rect x="13" y="8.5" width="22" height="9" rx="2.2" fill="#5fe0a0"/>
+<rect class="blink" x="29" y="10.8" width="2.6" height="4.4" rx=".6" fill="#14532d"/>
+<rect class="key" style="animation-delay:0s" x="13.5" y="21.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:.3s" x="21" y="21.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:.6s" x="28.5" y="21.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:.9s" x="13.5" y="28.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:1.2s" x="21" y="28.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:1.5s" x="28.5" y="28.5" width="6.2" height="5" rx="1.4" fill="#ffd76a"/>
+<rect class="key" style="animation-delay:1.8s" x="13.5" y="35.5" width="6.2" height="5" rx="1.4" fill="#c46bc0"/>
+<rect class="key" style="animation-delay:2.1s" x="21" y="35.5" width="6.2" height="5" rx="1.4" fill="#c46bc0"/>
+<rect class="key" style="animation-delay:2.4s" x="28.5" y="35.5" width="6.2" height="5" rx="1.4" fill="#ff6f80"/></svg></span><span class="mcLabel">Bank Calc</span></button>
+    <button class="menuCard" data-tab="duescalc" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="9" width="36" height="34" rx="5" fill="#fff6dc" stroke="#c9a227" stroke-width="1.4"/>
+<path d="M6 14 a5 5 0 0 1 5 -5 H37 a5 5 0 0 1 5 5 V19 H6 Z" fill="#a83aa4"/>
+<rect x="14" y="4.5" width="3.6" height="9" rx="1.8" fill="#ffd76a"/><rect x="30.4" y="4.5" width="3.6" height="9" rx="1.8" fill="#ffd76a"/>
+<path d="M12 25 H36 M12 31 H36 M12 37 H28" stroke="#d9c98e" stroke-width="1.2" stroke-linecap="round"/>
+<path class="tick" d="M15 30 L22 37 L35 22" fill="none" stroke="#1fae6a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Dues</span></button>
+    <button class="menuCard" data-tab="transactions" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="3.5" y="10" width="41" height="28" rx="4" fill="#fff6dc" stroke="#c9a227" stroke-width="1.4"/>
+<path d="M8 17 H28 M8 23 H20" stroke="#b9a56a" stroke-width="1.6" stroke-linecap="round"/>
+<rect x="33" y="14" width="8" height="6" rx="1.2" fill="#a83aa4" opacity=".75"/>
+<path d="M8 31 H17" stroke="#b9a56a" stroke-width="1.2" stroke-linecap="round"/>
+<path class="draw" d="M22 33 C25 24 28 24 28 30 C28 35 32 25 35 29 C37 32 39 30 41 28" fill="none" stroke="#4a0a48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Cheque</span></button>
+    <button class="menuCard" data-tab="bankaccount" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 L44 15 H4 Z" fill="#ffd76a" stroke="#c9a227" stroke-width="1.4" stroke-linejoin="round"/>
+<circle class="pulse" cx="24" cy="11" r="2.6" fill="#4a0a48"/>
+<rect class="col c1" x="8.5" y="18.5" width="5.4" height="17" rx="1" fill="#f5eef2"/>
+<rect class="col c2" x="16.5" y="18.5" width="5.4" height="17" rx="1" fill="#f5eef2"/>
+<rect class="col c3" x="25.5" y="18.5" width="5.4" height="17" rx="1" fill="#f5eef2"/>
+<rect class="col c4" x="33.5" y="18.5" width="5.4" height="17" rx="1" fill="#f5eef2"/>
+<rect x="4.5" y="37" width="39" height="6" rx="1.8" fill="#c46bc0" stroke="#a83aa4" stroke-width="1.2"/></svg></span><span class="mcLabel">Bank A/C</span></button>
+    <button class="menuCard" data-tab="remittances" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="3" y="13" width="26" height="21" rx="3.5" fill="#3a1536" stroke="#c46bc0" stroke-width="1.8"/>
+<path d="M3.8 14.5 L16 25 L28.2 14.5" fill="none" stroke="#c46bc0" stroke-width="1.8" stroke-linejoin="round"/>
+<g class="fly"><circle cx="20" cy="30" r="5.2" fill="#ffd76a" stroke="#c9a227" stroke-width="1.2"/><circle cx="20" cy="30" r="2.6" fill="none" stroke="#c9a227" stroke-width="1"/></g>
+<path class="chev" d="M33 18 L39 24 L33 30" fill="none" stroke="#5fe0a0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<path class="chev v2" d="M39 18 L45 24 L39 30" fill="none" stroke="#5fe0a0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Remittance</span></button>
+    <button class="menuCard" data-tab="reports" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><path d="M10 4 H29 L39 14 V44 H10 Z" fill="#fff6dc" stroke="#c9a227" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M29 4 V14 H39" fill="#eadca3" stroke="#c9a227" stroke-width="1.2" stroke-linejoin="round"/>
+<rect class="bar b1" x="14.5" y="30" width="5" height="9" rx="1" fill="#c46bc0"/>
+<rect class="bar b2" x="22" y="25" width="5" height="14" rx="1" fill="#ffd76a"/>
+<rect class="bar b3" x="29.5" y="28" width="5" height="11" rx="1" fill="#5fe0a0"/>
+<path class="draw" d="M14 22 L21 17 L27 20 L35 13" fill="none" stroke="#a83aa4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Reports</span></button>
+    <button class="menuCard" data-tab="setup" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><g class="spin"><circle cx="21" cy="27" r="12.5" fill="none" stroke="#ffd76a" stroke-width="5.5" stroke-dasharray="4.9 4.9"/><circle cx="21" cy="27" r="10" fill="#ffd76a"/><circle cx="21" cy="27" r="4.2" fill="#2c1428"/></g>
+<g class="spinRev"><circle cx="37" cy="12" r="6.2" fill="none" stroke="#c46bc0" stroke-width="3.6" stroke-dasharray="3.1 3.1"/><circle cx="37" cy="12" r="5" fill="#c46bc0"/><circle cx="37" cy="12" r="2.1" fill="#2c1428"/></g>
+<rect x="31" y="35" width="13" height="10" rx="2.4" fill="#ff6f80" stroke="#fff" stroke-width="1"/>
+<path d="M34 35 V32.5 a3.5 3.5 0 0 1 7 0 V35" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="mcLabel">Set-up</span></button>
+  </div>
+  <div id="dashboard" class="tab"></div>
+  <div id="notes" class="tab"></div>
+  <div id="income" class="tab"></div>
+  <div id="expenditure" class="tab"></div>
+  <div id="bankacct" class="tab"></div>
+  <div id="duescalc" class="tab"></div>
+  <div id="transactions" class="tab"></div>
+  <div id="bankaccount" class="tab"></div>
+  <div id="remittances" class="tab"></div>
+  <div id="reports" class="tab"></div>
+  <div id="setup" class="tab">
+    <div id="setupHome" class="menuGrid no-print">
+      <button class="menuCard" data-sub="pin" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="6" width="34" height="36" rx="7" fill="#3a1536" stroke="#ffd76a" stroke-width="1.8"/>
+<circle class="dotf" style="animation-delay:0s" cx="15" cy="17" r="3.2" fill="#ffd76a"/><circle class="dotf" style="animation-delay:.4s" cx="22" cy="17" r="3.2" fill="#ffd76a"/><circle class="dotf" style="animation-delay:.8s" cx="29" cy="17" r="3.2" fill="#ffd76a"/><circle class="dotf" style="animation-delay:1.2s" cx="36" cy="17" r="3.2" fill="#ffd76a"/>
+<g fill="#c46bc0" opacity=".85"><circle cx="15" cy="27" r="2.2"/><circle cx="24" cy="27" r="2.2"/><circle cx="33" cy="27" r="2.2"/><circle cx="15" cy="35" r="2.2"/><circle cx="24" cy="35" r="2.2"/><circle cx="33" cy="35" r="2.2"/></g></svg></span><span class="mcLabel">Set-up PIN</span></button>
+      <button class="menuCard" data-sub="protect" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><g class="breath"><path d="M24 4 L40 10 V23 C40 33 33 40 24 44 C15 40 8 33 8 23 V10 Z" fill="#3a1536" stroke="#5fe0a0" stroke-width="2.2" stroke-linejoin="round"/></g>
+<path class="tick" d="M16 24 L22 30 L33 17" fill="none" stroke="#5fe0a0" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="mcLabel">Edit Protection</span></button>
+      <button class="menuCard" data-sub="backup" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><path d="M14 36 a8.5 8.5 0 0 1 -0.5 -17 a11 11 0 0 1 21 3 a7 7 0 0 1 -0.5 14 Z" fill="#3a1536" stroke="#c46bc0" stroke-width="2" stroke-linejoin="round"/>
+<g class="rise"><path d="M24 40 V23 M17.5 29 L24 22.5 L30.5 29" fill="none" stroke="#ffd76a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span class="mcLabel">Backup &amp; Restore</span></button>
+      <button class="menuCard" data-sub="csv" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="4" width="32" height="34" rx="3.5" fill="#fff6dc" stroke="#c9a227" stroke-width="1.4"/>
+<path d="M6 7.5 a3.5 3.5 0 0 1 3.5 -3.5 H34.5 a3.5 3.5 0 0 1 3.5 3.5 V14 H6 Z" fill="#1fae6a"/>
+<path d="M6 21 H38 M6 28 H38 M16.7 14 V38 M27.3 14 V38" stroke="#cdb86b" stroke-width="1.2"/>
+<g class="arrowIn"><path d="M37 30 V44 M30.5 38 L37 44.5 L43.5 38" fill="none" stroke="#ff9f43" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span class="mcLabel">Export CSV</span></button>
+      <button class="menuCard" data-sub="sync" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><g class="spin"><path d="M9 25 A15 15 0 0 1 35 14" fill="none" stroke="#5fe0a0" stroke-width="3.6" stroke-linecap="round"/><path d="M36 6 V15 H27" fill="none" stroke="#5fe0a0" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M39 23 A15 15 0 0 1 13 34" fill="none" stroke="#ffd76a" stroke-width="3.6" stroke-linecap="round"/><path d="M12 42 V33 H21" fill="none" stroke="#ffd76a" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></g>
+<circle class="pulse" cx="24" cy="24" r="3.4" fill="#c46bc0"/></svg></span><span class="mcLabel">Sync</span></button>
+      <button class="menuCard" data-sub="info" type="button"><span class="mcIcon"><svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="12" y="3" width="24" height="42" rx="5" fill="#3a1536" stroke="#a83aa4" stroke-width="2"/>
+<rect x="21" y="6.5" width="6" height="1.8" rx=".9" fill="#a83aa4"/>
+<g class="pulse"><circle cx="24" cy="26" r="9.5" fill="#ffd76a"/></g>
+<circle cx="24" cy="21.6" r="1.8" fill="#4a0a48"/><rect x="22.6" y="25" width="2.8" height="8.4" rx="1.3" fill="#4a0a48"/></svg></span><span class="mcLabel">App Info</span></button>
+    </div>
+    <div id="setupPinCard"></div>
+    <div id="exportdata"></div>
+    <div id="syncdata"></div>
+  </div>
+</main>
+
+<button id="quickAddBtn" class="no-print" aria-label="Quick add income or expenditure">+</button>
+
+<div id="quickAddOverlay" class="no-print" style="display:none;">
+  <div id="quickAddModal">
+    <h2>Quick Entry</h2>
+    <form id="quickAddForm">
+      <label>Type</label>
+      <select name="kind" id="quickAddKind">
+        <option value="income">Income</option>
+        <option value="expenditure">Expenditure</option>
+      </select>
+      <label>Item</label>
+      <select name="item" id="quickAddItem"></select>
+      <label>Date</label>
+      <input type="date" name="date" id="quickAddDate" required>
+      <label>Amount (₦)</label>
+      <input type="number" name="amount" required>
+      <label>Payment Method</label>
+      <select name="method">
+        <option>Cash</option>
+        <option>Bank</option>
+      </select>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button type="submit" class="btn gold" style="margin-top:0;">Save</button>
+        <button type="button" class="btn secondary" id="quickAddCancel" style="margin-top:0;">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ================= REPORT PREVIEW (paper view shown before printing / saving) ================= -->
+<div id="pvOverlay" role="dialog" aria-modal="true" aria-label="Report preview">
+  <div class="pv-bar">
+    <button type="button" id="pvClose" class="pv-btn">&#10005; Close</button>
+    <div class="pv-title" id="pvTitle">Preview</div>
+  </div>
+  <div class="pv-scroll"><div class="pv-paper" id="pvPaper"></div></div>
+  <div class="pv-actions">
+    <button type="button" id="pvPrint" class="pv-btn pv-primary">&#128424; Print</button>
+    <button type="button" id="pvPdf" class="pv-btn pv-gold">PDF</button>
+    <button type="button" id="pvDocx" class="pv-btn">Word</button>
+  </div>
+</div>
+
+<script src="zip-writer.js"></script>
+<script src="pdf-writer.js"></script>
+<script src="seed-data.js"></script>
+<script src="app.js"></script>
+<script src="sync.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(()=>{});
+    });
+  }
+
+  /* ---------- Touch ripple feedback on buttons / menu cards / entry cards ---------- */
+  document.addEventListener("pointerdown", (e)=>{
+    const el = e.target.closest(".btn, .menuCard, #sectionBack, .entrycard, .keyBtn");
+    if(!el) return;
+    const rect = el.getBoundingClientRect();
+    const ripple = document.createElement("span");
+    const size = Math.max(rect.width, rect.height);
+    ripple.className = "ripple";
+    ripple.style.width = ripple.style.height = size + "px";
+    ripple.style.left = (e.clientX - rect.left - size/2) + "px";
+    ripple.style.top = (e.clientY - rect.top - size/2) + "px";
+    if(getComputedStyle(el).position === "static") el.style.position = "relative";
+    el.appendChild(ripple);
+    setTimeout(()=>ripple.remove(), 500);
+  });
+
+  /* ---------- PIN lock screen ---------- */
+  const APP_PIN = "1111";
+  const lockScreen = document.getElementById("lockScreen");
+  const lockDots = document.querySelectorAll(".lockDot");
+  const lockError = document.getElementById("lockError");
+  let enteredPin = "";
+
+  function unlockApp(){
+    lockScreen.classList.add("hidden");
+    sessionStorage.setItem("ubcUnlocked", "1");
+  }
+
+  function refreshDots(){
+    lockDots.forEach((d,i)=> d.classList.toggle("filled", i < enteredPin.length));
+  }
+
+  function wrongPin(){
+    lockError.textContent = "Incorrect PIN — try again";
+    lockScreen.classList.add("shake");
+    setTimeout(()=>{ lockScreen.classList.remove("shake"); enteredPin=""; refreshDots(); }, 400);
+  }
+
+  document.getElementById("keypad").addEventListener("click", (e)=>{
+    const btn = e.target.closest(".keyBtn");
+    if(!btn) return;
+    const k = btn.dataset.k;
+    if(k === "clear"){ enteredPin = ""; lockError.textContent=""; refreshDots(); return; }
+    if(enteredPin.length >= 4) return;
+    enteredPin += k;
+    refreshDots();
+    if(enteredPin.length === 4){
+      if(enteredPin === APP_PIN){
+        lockError.textContent = "";
+        setTimeout(unlockApp, 150);
+      } else {
+        wrongPin();
+      }
+    }
+  });
+
+  if(sessionStorage.getItem("ubcUnlocked") === "1"){
+    lockScreen.classList.add("hidden");
+  }
+
+  /* Re-lock the instant the app is left (minimized, tab switched away, or
+     closed) — not just on a fresh cold start. There's no way for a website
+     to block the close action itself (browsers deliberately don't allow
+     that, to stop sites trapping people), so this is the closest real
+     equivalent: you can't get back in without the PIN, every single time. */
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState === "hidden"){
+      sessionStorage.removeItem("ubcUnlocked");
+      enteredPin = "";
+      lockError.textContent = "";
+      refreshDots();
+      lockScreen.classList.remove("hidden");
+    }
+  });
+</script>
+</body>
+</html>
