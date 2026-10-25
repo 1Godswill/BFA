@@ -103,7 +103,7 @@
     display:flex;flex-direction:column;align-items:center;gap:7px;
     padding:14px 4px 11px;color:var(--text);font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.2px;
     background:linear-gradient(160deg, var(--card2), var(--card));
-    border:1px solid var(--border);border-top:3px solid var(--gold-dim);border-radius:14px;
+    border:1px solid var(--border);border-radius:14px;
     box-shadow:0 4px 14px rgba(0,0,0,.35);
     opacity:0;animation:cardIn .45s ease-out forwards;
     transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
@@ -168,6 +168,39 @@
   @keyframes icDot{ 0%,8%{opacity:.2;transform:scale(.7);} 22%,70%{opacity:1;transform:scale(1);} 100%{opacity:.2;transform:scale(.7);} }
   .ic .breath{transform-origin:50% 50%;animation:icBreath 2.6s ease-in-out infinite;}
   @keyframes icBreath{ 0%,100%{transform:scale(.95);} 50%{transform:scale(1.05);} }
+
+  /* ---------- Dashboard: section cards + animated pie ---------- */
+  #dashboard:not(.sub-open) .dashBody{display:none;}
+  #dashboard.sub-open #dashHome{display:none;}
+  .ic .swing{transform-origin:50% 100%;animation:icSwing 3s ease-in-out infinite;}
+  @keyframes icSwing{ 0%,100%{transform:rotate(-55deg);} 50%{transform:rotate(55deg);} }
+  .ic .slide{animation:icSlide 2.4s ease-in-out infinite;}
+  @keyframes icSlide{ 0%,100%{transform:translateX(-3px);} 50%{transform:translateX(3px);} }
+  .ic .barD{transform-origin:50% 0%;animation:icBarD 2.6s ease-in-out infinite;}
+  .ic .barD.b2{animation-delay:.35s;} .ic .barD.b3{animation-delay:.7s;}
+  @keyframes icBarD{ 0%,100%{transform:scaleY(.5);} 50%{transform:scaleY(1);} }
+  .pieWrap{position:relative;width:220px;height:220px;margin:6px auto 12px;animation:pieFloat 4.5s ease-in-out infinite;}
+  .pieWrap svg{width:100%;height:100%;display:block;overflow:visible;filter:drop-shadow(0 6px 14px rgba(0,0,0,.5));}
+  .pieSlice{fill:none;stroke-width:7;stroke-dasharray:var(--p) 100;stroke-dashoffset:var(--p);
+    animation:pieIn 1.3s cubic-bezier(.3,.7,.2,1) forwards, piePulse 3.2s ease-in-out 1.4s infinite;}
+  .pieSlice.s2{animation-delay:.55s, 1.9s;}
+  .pieTrack{fill:none;stroke:rgba(255,255,255,.07);stroke-width:7;}
+  .pieSweep{fill:none;stroke:rgba(255,255,255,.35);stroke-width:7.6;stroke-dasharray:3 97;opacity:.55;}
+  .pieSpin{transform-origin:21px 21px;transform-box:view-box;animation:icSpin 5s linear infinite;}
+  @keyframes pieIn{ to{stroke-dashoffset:0;} }
+  @keyframes piePulse{ 0%,100%{stroke-width:7;} 50%{stroke-width:8.2;} }
+  @keyframes pieFloat{ 0%,100%{transform:translateY(0) scale(1);} 50%{transform:translateY(-4px) scale(1.02);} }
+  .pieCenter{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;}
+  .pieCenter small{font-size:10.5px;color:var(--muted);}
+  .pieCenter b{font-size:14px;margin-top:2px;animation:pieFade .9s ease-out .9s both;}
+  @keyframes pieFade{ from{opacity:0;transform:scale(.7);} to{opacity:1;transform:none;} }
+  .pieLegend{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+  .pieLegend .lg{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.03);animation:cardIn .5s ease-out both;}
+  .pieLegend .lg:nth-child(2){animation-delay:.2s;}
+  .pieLegend .sw{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+  .pieLegend .lgT{flex:1;font-size:12.5px;}
+  .pieLegend .lgT small{display:block;color:var(--muted);font-size:11px;}
+  .dashBack{margin-bottom:10px;}
   .ic .rise{animation:icRise 1.6s ease-in-out infinite;}
   @keyframes icRise{ 0%,100%{transform:translateY(3px);} 50%{transform:translateY(-3px);} }
   @media (prefers-reduced-motion: reduce){
@@ -212,6 +245,12 @@
   }
   .card h2{margin:0 0 10px;font-size:15px;color:var(--gold-bright);}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .txnLine{border:1px solid var(--border);border-radius:12px;padding:4px 10px 10px;margin-top:10px;background:rgba(255,255,255,.03);}
+  .txnLineTop{display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:12px;font-weight:700;color:var(--muted);}
+  .miniBtn{width:28px;height:28px;border-radius:50%;border:1px solid var(--gold-dim);background:rgba(232,195,74,.12);
+    color:var(--gold-bright);font-size:18px;line-height:1;padding:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
+  .miniBtn.rm{border-color:var(--border);background:rgba(255,255,255,.05);color:var(--muted);font-size:16px;}
+  .addLineRow{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--muted);}
   label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;margin-top:8px;font-weight:600;}
   input,select,textarea{
     width:100%;padding:10px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;
@@ -394,7 +433,6 @@
   <div class="lock-globe-outer"><div class="lock-globe"><img src="img/logo.jpg" alt="Church logo"></div></div>
   <h1>UNIVERSITY BAPTIST CHURCH, OTUOKE</h1>
   <p class="sub">Finance — enter PIN to unlock</p>
-  <p class="sub" style="font-size:11px;opacity:.7;margin-top:-6px;">Version 1.5</p>
   <div id="lockDots">
     <div class="lockDot"></div><div class="lockDot"></div><div class="lockDot"></div><div class="lockDot"></div>
   </div>
@@ -613,7 +651,7 @@
   /* ---------- PIN lock screen ---------- */
   const APP_PIN = "1111";
   const lockScreen = document.getElementById("lockScreen");
-  const lockDots = document.querySelectorAll(".lockDot");
+  const lockDots = document.querySelectorAll("#lockDots .lockDot");
   const lockError = document.getElementById("lockError");
   let enteredPin = "";
 

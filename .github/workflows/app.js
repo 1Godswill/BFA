@@ -348,9 +348,38 @@ function openSetupSub(key){
 }
 function closeSetupSub(){ setSetupSub(null); }
 
+/* ----- Dashboard is a menu of section cards with animated icons (Overview, Pie chart, Months, Top 5 ...) ----- */
+const DASH_SUBS = {overview:"Overview", pie:"Pie Chart", months:"Recent Months", topexp:"Top Expenditures", topinc:"Top Income"};
+const DASH_ICONS = {
+  overview: `<svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><path d="M7 33 A17 17 0 0 1 41 33" fill="none" stroke="#3a1536" stroke-width="7" stroke-linecap="round"/><path d="M7 33 A17 17 0 0 1 24 16" fill="none" stroke="#ff6f80" stroke-width="4" stroke-linecap="round"/><path d="M24 16 A17 17 0 0 1 41 33" fill="none" stroke="#5fe0a0" stroke-width="4" stroke-linecap="round"/><g class="swing"><path d="M24 33 L24 15" stroke="#ffd76a" stroke-width="3" stroke-linecap="round"/></g><circle cx="24" cy="33" r="4" fill="#ffd76a"/><circle cx="24" cy="33" r="1.6" fill="#2c1428"/></svg>`,
+  pie: `<svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><g class="spin"><circle cx="24" cy="24" r="16" fill="none" stroke="#5fe0a0" stroke-width="9" stroke-dasharray="62 100"/><circle cx="24" cy="24" r="16" fill="none" stroke="#ff6f80" stroke-width="9" stroke-dasharray="38 100" stroke-dashoffset="-62"/></g><circle class="breath" cx="24" cy="24" r="6" fill="#2c1428" stroke="#ffd76a" stroke-width="1.6"/></svg>`,
+  months: `<svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="9" width="36" height="33" rx="6" fill="#3a1536" stroke="#ffd76a" stroke-width="1.8"/><rect x="6" y="9" width="36" height="9" rx="4" fill="#a83aa4"/><path d="M15 5 V12 M33 5 V12" stroke="#ffd76a" stroke-width="3" stroke-linecap="round"/><g fill="#ffd76a"><circle class="dotf" style="animation-delay:0s" cx="15" cy="26" r="2.4"/><circle class="dotf" style="animation-delay:.3s" cx="24" cy="26" r="2.4"/><circle class="dotf" style="animation-delay:.6s" cx="33" cy="26" r="2.4"/><circle class="dotf" style="animation-delay:.9s" cx="15" cy="34" r="2.4"/><circle class="dotf" style="animation-delay:1.2s" cx="24" cy="34" r="2.4"/><circle class="dotf" style="animation-delay:1.5s" cx="33" cy="34" r="2.4"/></g></svg>`,
+  topexp: `<svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="7" fill="#3a1536" stroke="#ff6f80" stroke-width="1.6"/><rect class="barD b1" x="11" y="11" width="6.5" height="22" rx="1.5" fill="#ff6f80"/><rect class="barD b2" x="20.7" y="11" width="6.5" height="15" rx="1.5" fill="#ffd76a"/><rect class="barD b3" x="30.5" y="11" width="6.5" height="9" rx="1.5" fill="#c46bc0"/><g class="arrowOut"><path d="M33 31 L40 38 M40 31 V38 H33" fill="none" stroke="#ff6f80" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`,
+  topinc: `<svg class="ic" viewBox="0 0 48 48" aria-hidden="true"><g class="rise"><path d="M24 5 L28.6 15.2 L39.6 16.4 L31.4 23.8 L33.8 34.6 L24 29 L14.2 34.6 L16.6 23.8 L8.4 16.4 L19.4 15.2 Z" fill="#ffd76a" stroke="#c9a227" stroke-width="1.4" stroke-linejoin="round"/></g><path d="M14 43 H34" stroke="#5fe0a0" stroke-width="3" stroke-linecap="round"/><circle class="pulse" cx="24" cy="19" r="2.6" fill="#4a0a48"/></svg>`
+};
+let dashSub = null;
+function dashIconEl(key){ const d = document.createElement("div"); d.innerHTML = DASH_ICONS[key]||""; return d.firstElementChild; }
+function setDashSub(key){
+  dashSub = key || null;
+  if(dashSub){
+    paintSectionBar("Dashboard \u203A " + DASH_SUBS[dashSub], dashIconEl(dashSub));
+  }else{
+    const c = document.querySelector('#tabs .menuCard[data-tab="dashboard"]');
+    paintSectionBar("Dashboard", c ? c.querySelector(".mcIcon svg") : null);
+  }
+  renderDashboard();
+  window.scrollTo(0,0);
+}
+function openDashSub(key){
+  setDashSub(key);
+  try{ history.pushState({sec:"dashboard", sub:key}, ""); }catch(e){}
+}
+function closeDashSub(){ setDashSub(null); }
+
 /* Opens one section (the old "tabs"). The card menu is hidden and a slim bar with a Back button shows instead. */
 function activateTab(tabId, fromPop){
   if(tabId !== "setup"){ setupUnlocked = false; if(setupSub) setSetupSub(null); }   // leaving Set-up locks it again
+  if(tabId !== "dashboard" && dashSub) dashSub = null;
   const wasOpen = sectionIsOpen();
   const card = document.querySelector('#tabs .menuCard[data-tab="'+tabId+'"]');
   document.querySelectorAll("#tabs .menuCard").forEach(b=>b.classList.toggle("active", b===card));
@@ -361,6 +390,7 @@ function activateTab(tabId, fromPop){
     paintSectionBar(lab ? lab.textContent : tabId, card.querySelector(".mcIcon svg"));
   }
   if(tabId === "setup" && !wasOpen) setSetupSub(null);      // always land on the Set-up cards
+  if(tabId === "dashboard" && !wasOpen) dashSub = null;     // always land on the Dashboard cards
   window.scrollTo(0,0);
   // so the phone's Back button returns to the card menu instead of leaving the app
   if(!fromPop && !wasOpen){ try{ history.pushState({sec:tabId}, ""); }catch(e){} }
@@ -370,6 +400,7 @@ function activateTab(tabId, fromPop){
 /* Back to the card menu. */
 function showHome(){
   setupUnlocked = false;
+  dashSub = null;
   if(setupSub) setSetupSub(null);
   document.querySelectorAll("#tabs .menuCard").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
@@ -389,15 +420,21 @@ document.getElementById("setupHome").addEventListener("click", (e)=>{
   if(btn) openSetupSub(btn.dataset.sub);
 });
 
+document.getElementById("dashboard").addEventListener("click", (e)=>{
+  const btn = e.target.closest("button[data-dsub]");
+  if(btn) openDashSub(btn.dataset.dsub);
+});
+
 document.getElementById("sectionBack").addEventListener("click", ()=>{
   if(history.state && history.state.sec){ history.back(); }   // popstate handler steps back one level
   else if(setupSub) closeSetupSub();
+  else if(dashSub) closeDashSub();
   else showHome();
 });
 window.addEventListener("popstate", (e)=>{
   const st = e.state || {};
   if(st.pv) return;                                          // report preview is handled by hideReportPreview
-  if(st.sec){ if(setupSub && !st.sub) closeSetupSub(); return; }
+  if(st.sec){ if(setupSub && !st.sub) closeSetupSub(); if(dashSub && !st.sub) closeDashSub(); return; }
   if(sectionIsOpen()) showHome();
 });
 
@@ -1509,18 +1546,44 @@ function renderDues(){
 }
 
 /* ================= TRANSACTIONS (BANK LOG) TAB ================= */
-let txnEditingId = null;
+let txnEditingIds = null;   // ids of the cheque (one or more lines) being edited
 let txnFilterMonth = "";
 
 function renderTransactions(){
   const el = document.getElementById("transactions");
   const txns = loadTransactions();
-  const editing = txnEditingId ? txns.find(t=>t.id===txnEditingId) : null;
+  const editingLines = txnEditingIds ? txns.filter(t=>txnEditingIds.includes(t.id)) : [];
+  const editing = editingLines[0] || null;
   const months = [...new Set(txns.map(t=>monthKeyOf(t.date)))].sort().reverse();
   if(txnFilterMonth && !months.includes(txnFilterMonth)) txnFilterMonth = "";
 
   let filtered = txnFilterMonth ? txns.filter(t=>monthKeyOf(t.date)===txnFilterMonth) : txns;
   filtered = [...filtered].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+
+  // Lines that share a cheque number are one transaction in the history.
+  const groups = [];
+  const byCheque = {};
+  filtered.forEach(t=>{
+    const key = String(t.chequeNo||"").trim().toLowerCase();
+    if(!key){ groups.push({lines:[t]}); return; }
+    if(!byCheque[key]){ byCheque[key] = {lines:[]}; groups.push(byCheque[key]); }
+    byCheque[key].lines.push(t);
+  });
+
+  const lineHTML = (v, removable) => `
+    <div class="txnLine" ${v.id ? `data-id="${esc(v.id)}"` : ""}>
+      <div class="txnLineTop"><span>${removable ? "Additional transaction" : "Transaction"}</span>${removable ? `<button type="button" class="miniBtn rm" aria-label="Remove this transaction">×</button>` : ""}</div>
+      <label>Particulars</label>
+      <input class="lnPart" ${v.id || !removable ? "required" : ""} value="${esc(v.particulars)}" placeholder="e.g. Offering deposit">
+      <label>Amount (₦)</label>
+      <input type="number" class="lnAmt" ${v.id || !removable ? "required" : ""} value="${v.amount||""}">
+      <div class="grid2">
+        <div><label>Bank</label><input class="lnBank" value="${esc(v.bank)}"></div>
+        <div><label>Account Name</label><input class="lnAccName" value="${esc(v.accountName)}"></div>
+      </div>
+      <label>Account Number</label>
+      <input class="lnAccNo" inputmode="numeric" autocomplete="off" value="${esc(v.accountNumber)}" placeholder="e.g. 0123456789">
+    </div>`;
 
   el.innerHTML = `
     <div class="card">
@@ -1528,16 +1591,10 @@ function renderTransactions(){
       <form id="txnForm">
         <label>Date</label>
         <input type="date" name="date" required value="${esc(editing?.date || todayISO())}">
-        <label>Particulars</label>
-        <input name="particulars" required value="${esc(editing?.particulars)}" placeholder="e.g. Offering deposit">
-        <label>Amount (₦)</label>
-        <input type="number" name="amount" required value="${editing?.amount||""}">
-        <div class="grid2">
-          <div><label>Bank</label><input name="bank" value="${esc(editing?.bank)}"></div>
-          <div><label>Account Name</label><input name="accountName" value="${esc(editing?.accountName)}"></div>
-        </div>
         <label>Cheque No. (optional)</label>
         <input name="chequeNo" value="${esc(editing?.chequeNo)}">
+        <div id="txnLines">${editingLines.length ? editingLines.map((l,i)=>lineHTML(l, i>0)).join("") : lineHTML({}, false)}</div>
+        <div class="addLineRow"><button type="button" class="miniBtn" id="addTxnLine" title="Add another transaction on this cheque" aria-label="Add another transaction">+</button><span>Add another transaction on the same cheque</span></div>
         <button class="btn" type="submit">${editing ? "Save Changes" : "Add Transaction"}</button>
         ${editing ? `<button class="btn secondary" type="button" id="cancelTxnEdit">Cancel</button>` : ""}
       </form>
@@ -1552,56 +1609,115 @@ function renderTransactions(){
       </select>
       <div class="stat" style="margin-top:10px;">Total shown <b>${naira(filtered.reduce((s,t)=>s+(Number(t.amount)||0),0))}</b></div>
       <div style="margin-top:8px;">
-        ${filtered.length===0 ? '<div class="empty">No transactions found.</div>' :
-          filtered.map(t=>`
+        ${groups.length===0 ? '<div class="empty">No transactions found.</div>' :
+          groups.map(g=>{
+            const ids = g.lines.map(l=>l.id).join(",");
+            const total = g.lines.reduce((s,l)=>s+(Number(l.amount)||0),0);
+            const detail = l => [l.bank, l.accountName, l.accountNumber ? "Acct# "+l.accountNumber : ""].filter(Boolean).map(esc).join(" • ") || "—";
+            if(g.lines.length===1){
+              const t = g.lines[0];
+              return `
             <div class="entrycard">
               <b>${esc(t.particulars)}</b> — ${naira(t.amount)}
-              <div class="meta">${esc(t.date)} • ${esc(t.bank)||"—"} ${t.accountName ? "• "+esc(t.accountName) : ""} ${t.chequeNo ? "• Chq# "+esc(t.chequeNo) : ""}</div>
+              <div class="meta">${esc(t.date)} • ${detail(t)} ${t.chequeNo ? "• Chq# "+esc(t.chequeNo) : ""}</div>
               <div style="margin-top:8px;display:flex;gap:8px;">
-                <button class="btn small secondary" data-edit="${t.id}">Edit</button>
-                <button class="btn small danger" data-del="${t.id}">Delete</button>
+                <button class="btn small secondary" data-edit="${ids}">Edit</button>
+                <button class="btn small danger" data-del="${ids}">Delete</button>
               </div>
-            </div>
-          `).join("")}
+            </div>`;
+            }
+            return `
+            <div class="entrycard">
+              <b>Cheque # ${esc(g.lines[0].chequeNo)}</b> — ${naira(total)}
+              <div class="meta">${esc(g.lines[0].date)} • ${g.lines.length} items</div>
+              <div style="margin-top:6px;border-top:1px dashed var(--border);">
+                ${g.lines.map(l=>`
+                  <div style="padding:6px 0;border-bottom:1px dashed var(--border);">
+                    <div style="display:flex;justify-content:space-between;gap:8px;"><span>${esc(l.particulars)}</span><b>${naira(l.amount)}</b></div>
+                    <div class="meta">${detail(l)}</div>
+                  </div>`).join("")}
+              </div>
+              <div style="margin-top:8px;display:flex;gap:8px;">
+                <button class="btn small secondary" data-edit="${ids}">Edit</button>
+                <button class="btn small danger" data-del="${ids}">Delete</button>
+              </div>
+            </div>`;
+          }).join("")}
       </div>
     </div>
   `;
 
+  el.querySelectorAll("#txnLines .txnLine .rm").forEach(b=>b.addEventListener("click", ()=> b.closest(".txnLine").remove()));
+
+  el.querySelector("#addTxnLine").addEventListener("click", ()=>{
+    const wrap = document.createElement("div");
+    // Carry the previous line's bank details forward to save retyping.
+    const prev = el.querySelector("#txnLines").lastElementChild;
+    wrap.innerHTML = lineHTML({
+      bank: prev.querySelector(".lnBank").value,
+      accountName: prev.querySelector(".lnAccName").value,
+      accountNumber: prev.querySelector(".lnAccNo").value
+    }, true);
+    const row = wrap.firstElementChild;
+    row.querySelector(".rm").addEventListener("click", ()=> row.remove());
+    el.querySelector("#txnLines").appendChild(row);
+    row.querySelector(".lnPart").focus();
+  });
+
   el.querySelector("#txnForm").addEventListener("submit", (ev)=>{
     ev.preventDefault();
-    const fd = new FormData(ev.target);
-    const data = Object.fromEntries(fd.entries());
-    if(!confirmEditPassword(txnEditingId ? "save changes" : "add this transaction")) return;
-    data.amount = Number(data.amount)||0;
-    data.modifiedAt = nowMs();
+    const f = ev.target;
+    // Date and cheque number are shared by every line on this cheque.
+    const shared = { date: f.date.value, chequeNo: f.chequeNo.value };
+    const lines = [...f.querySelectorAll(".txnLine")].map(r=>({
+      id: r.dataset.id || "",
+      particulars: r.querySelector(".lnPart").value.trim(),
+      amountRaw: r.querySelector(".lnAmt").value,
+      bank: r.querySelector(".lnBank").value,
+      accountName: r.querySelector(".lnAccName").value,
+      accountNumber: r.querySelector(".lnAccNo").value
+    }));
+    // Extra lines left with no particulars/amount are ignored; half-filled ones are flagged.
+    const used = lines.filter((l,i)=> i===0 || l.particulars || l.amountRaw !== "");
+    if(used.some(l=>!l.particulars || l.amountRaw === "")){ toast("Fill in particulars and amount on every transaction"); return; }
+    if(!confirmEditPassword(txnEditingIds ? "save changes" : (used.length>1 ? "add these transactions" : "add this transaction"))) return;
+    const stamp = nowMs();
+    const mk = l => ({...shared, particulars: l.particulars, amount: Number(l.amountRaw)||0, bank: l.bank, accountName: l.accountName, accountNumber: l.accountNumber, modifiedAt: stamp});
     let txns2 = loadTransactions();
-    if(txnEditingId){
-      txns2 = txns2.map(t => t.id===txnEditingId ? {...t, ...data} : t);
-      toast("Transaction updated");
+    if(txnEditingIds){
+      // Lines kept from the original cheque are updated, new ones are added, removed ones are deleted.
+      const keptIds = used.filter(l=>l.id).map(l=>l.id);
+      const removedIds = txnEditingIds.filter(id=>!keptIds.includes(id));
+      if(removedIds.length) recordTombstones(removedIds);
+      txns2 = txns2.filter(t=>!removedIds.includes(t.id))
+                   .map(t=>{ const l = used.find(x=>x.id===t.id); return l ? {...t, ...mk(l)} : t; });
+      used.filter(l=>!l.id).forEach(l=> txns2.push({id: uid(), ...mk(l)}));
+      toast("Cheque updated");
     }else{
-      txns2 = [...txns2, {id: uid(), ...data}];
-      toast("Transaction added");
+      used.forEach(l=> txns2.push({id: uid(), ...mk(l)}));
+      toast(used.length>1 ? used.length+" transactions added" : "Transaction added");
     }
     saveTransactions(txns2);
-    txnEditingId = null;
+    txnEditingIds = null;
     renderAll();
   });
 
   const cancelBtn = el.querySelector("#cancelTxnEdit");
-  if(cancelBtn) cancelBtn.addEventListener("click", ()=>{ txnEditingId=null; renderAll(); });
+  if(cancelBtn) cancelBtn.addEventListener("click", ()=>{ txnEditingIds=null; renderAll(); });
 
   el.querySelector("#txnMonthFilter").addEventListener("change", (ev)=>{
     txnFilterMonth = ev.target.value; renderAll();
   });
 
   el.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click", ()=>{
-    txnEditingId = b.dataset.edit; renderAll(); el.scrollIntoView({behavior:"smooth"});
+    txnEditingIds = b.dataset.edit.split(","); renderAll(); el.scrollIntoView({behavior:"smooth"});
   }));
   el.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click", ()=>{
-    if(!confirmEditPassword("delete this transaction")) return;
-    recordTombstone(b.dataset.del);
-    saveTransactions(loadTransactions().filter(t=>t.id!==b.dataset.del));
-    toast("Transaction deleted");
+    const ids = b.dataset.del.split(",");
+    if(!confirmEditPassword(ids.length>1 ? "delete this cheque and all its transactions" : "delete this transaction")) return;
+    recordTombstones(ids);
+    saveTransactions(loadTransactions().filter(t=>!ids.includes(t.id)));
+    toast(ids.length>1 ? "Cheque deleted" : "Transaction deleted");
     renderAll();
   }));
 }
@@ -1609,6 +1725,7 @@ function renderTransactions(){
 /* ================= DASHBOARD TAB ================= */
 function renderDashboard(){
   const el = document.getElementById("dashboard");
+  el.classList.toggle("sub-open", !!dashSub);
   const income = loadIncome();
   const expenditure = loadExpenditure();
 
@@ -1635,50 +1752,78 @@ function renderDashboard(){
   const topExp = Object.entries(expByItem).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const maxExp = topExp.length ? topExp[0][1] : 0;
 
+  const pieTotal = totalIncome + totalExp;
+  const incPct = pieTotal ? (totalIncome/pieTotal)*100 : 0;
+  const expPct = pieTotal ? 100 - incPct : 0;
+  const pieHTML = pieTotal ? `
+      <div class="pieWrap">
+        <svg viewBox="0 0 42 42" aria-hidden="true">
+          <circle class="pieTrack" cx="21" cy="21" r="15.9155"/>
+          <circle class="pieSlice" cx="21" cy="21" r="15.9155" pathLength="100" stroke="#5fe0a0" style="--p:${incPct.toFixed(3)}" transform="rotate(-90 21 21)"/>
+          <circle class="pieSlice s2" cx="21" cy="21" r="15.9155" pathLength="100" stroke="#ff6f80" style="--p:${expPct.toFixed(3)}" transform="rotate(${(-90 + incPct*3.6).toFixed(3)} 21 21)"/>
+          <g class="pieSpin"><circle class="pieSweep" cx="21" cy="21" r="15.9155" pathLength="100" transform="rotate(-90 21 21)"/></g>
+        </svg>
+        <div class="pieCenter"><small>Net balance</small><b class="${netBalance>=0?'amt-in':'amt-out'}">${naira(netBalance)}</b></div>
+      </div>
+      <div class="pieLegend">
+        <div class="lg"><span class="sw" style="background:#5fe0a0"></span><div class="lgT">Total Income<small>${incPct.toFixed(1)}% of combined total</small></div><b class="amt-in">${naira(totalIncome)}</b></div>
+        <div class="lg"><span class="sw" style="background:#ff6f80"></span><div class="lgT">Total Expenditure<small>${expPct.toFixed(1)}% of combined total</small></div><b class="amt-out">${naira(totalExp)}</b></div>
+      </div>` : `<div class="empty">Add income or expenditure entries to see the pie chart.</div>`;
+
+  const SECTIONS = {
+    overview: `
+      <div class="card">
+        <h2>Overview (All Time)</h2>
+        <div class="stat">Total Income <b class="amt-in">${naira(totalIncome)}</b></div>
+        <div class="stat">Total Expenditure <b class="amt-out">${naira(totalExp)}</b></div>
+        <div class="stat">Net Balance <b class="${netBalance>=0?'amt-in':'amt-out'}">${naira(netBalance)}</b></div>
+        <div class="stat">Income Entries <b>${income.length}</b></div>
+        <div class="stat">Expenditure Entries <b>${expenditure.length}</b></div>
+      </div>`,
+    pie: `
+      <div class="card">
+        <h2>Income vs Expenditure</h2>
+        ${pieHTML}
+      </div>`,
+    months: byMonth.length ? `
+      <div class="card">
+        <h2>Recent Months</h2>
+        ${byMonth.map(x=>`
+          <div class="entrycard">
+            <b>${monthLabel(x.m)}</b>
+            <div class="meta">Income: <span class="amt-in">${naira(x.inc)}</span> • Expenditure: <span class="amt-out">${naira(x.exp)}</span></div>
+            <div class="meta">Net: <b class="${x.net>=0?'amt-in':'amt-out'}">${naira(x.net)}</b></div>
+          </div>
+        `).join("")}
+      </div>` : `<div class="card"><div class="empty">No monthly figures yet.</div></div>`,
+    topexp: topExp.length ? `
+      <div class="card">
+        <h2>Top 5 Expenditures</h2>
+        ${topExp.map(([item,amt])=>{
+          const pct = maxExp ? Math.max(4, Math.round((amt/maxExp)*100)) : 0;
+          return `
+            <div style="margin:10px 0;">
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;">
+                <span>${esc(item)}</span><b class="amt-out">${naira(amt)}</b>
+              </div>
+              <div style="background:rgba(255,255,255,.06);border-radius:6px;overflow:hidden;height:10px;">
+                <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#a3213f,var(--out));border-radius:6px;"></div>
+              </div>
+            </div>`;
+        }).join("")}
+      </div>` : `<div class="card"><div class="empty">No expenditure entries yet.</div></div>`,
+    topinc: topIncome.length ? `
+      <div class="card">
+        <h2>Top Income Sources</h2>
+        ${topIncome.map(([item,amt])=>`<div class="stat">${esc(item)} <b>${naira(amt)}</b></div>`).join("")}
+      </div>` : `<div class="card"><div class="empty">Add income entries to see totals here.</div></div>`
+  };
+
+  const cardBtn = (k) => `<button class="menuCard" data-dsub="${k}" type="button"><span class="mcIcon">${DASH_ICONS[k]}</span><span class="mcLabel">${DASH_SUBS[k]}</span></button>`;
+
   el.innerHTML = `
-    <div class="card">
-      <h2>Overview (All Time)</h2>
-      <div class="stat">Total Income <b class="amt-in">${naira(totalIncome)}</b></div>
-      <div class="stat">Total Expenditure <b class="amt-out">${naira(totalExp)}</b></div>
-      <div class="stat">Net Balance <b class="${netBalance>=0?'amt-in':'amt-out'}">${naira(netBalance)}</b></div>
-      <div class="stat">Income Entries <b>${income.length}</b></div>
-      <div class="stat">Expenditure Entries <b>${expenditure.length}</b></div>
-    </div>
-
-    ${byMonth.length ? `
-    <div class="card">
-      <h2>Recent Months</h2>
-      ${byMonth.map(x=>`
-        <div class="entrycard">
-          <b>${monthLabel(x.m)}</b>
-          <div class="meta">Income: <span class="amt-in">${naira(x.inc)}</span> • Expenditure: <span class="amt-out">${naira(x.exp)}</span></div>
-          <div class="meta">Net: <b class="${x.net>=0?'amt-in':'amt-out'}">${naira(x.net)}</b></div>
-        </div>
-      `).join("")}
-    </div>` : ""}
-
-    ${topExp.length ? `
-    <div class="card">
-      <h2>Top 5 Expenditures</h2>
-      ${topExp.map(([item,amt])=>{
-        const pct = maxExp ? Math.max(4, Math.round((amt/maxExp)*100)) : 0;
-        return `
-          <div style="margin:10px 0;">
-            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;">
-              <span>${esc(item)}</span><b class="amt-out">${naira(amt)}</b>
-            </div>
-            <div style="background:rgba(255,255,255,.06);border-radius:6px;overflow:hidden;height:10px;">
-              <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#a3213f,var(--out));border-radius:6px;"></div>
-            </div>
-          </div>`;
-      }).join("")}
-    </div>` : ""}
-
-    ${topIncome.length ? `
-    <div class="card">
-      <h2>Top Income Sources</h2>
-      ${topIncome.map(([item,amt])=>`<div class="stat">${esc(item)} <b>${naira(amt)}</b></div>`).join("")}
-    </div>` : `<div class="card"><div class="empty">Add income entries to see totals here.</div></div>`}
+    <div id="dashHome" class="menuGrid no-print">${Object.keys(DASH_SUBS).map(cardBtn).join("")}</div>
+    <div class="dashBody">${dashSub ? SECTIONS[dashSub] : ""}</div>
   `;
 }
 
@@ -1811,7 +1956,7 @@ function renderExport(){
     toast("Expenditure exported to Downloads");
   });
   document.getElementById("exportTxnBtn").addEventListener("click", ()=>{
-    const rows = [["Date","Particulars","Amount","Bank","Account Name","Cheque No."], ...loadTransactions().map(t=>[t.date,t.particulars,t.amount,t.bank,t.accountName,t.chequeNo])];
+    const rows = [["Date","Particulars","Amount","Bank","Account Name","Account No.","Cheque No."], ...loadTransactions().map(t=>[t.date,t.particulars,t.amount,t.bank,t.accountName,t.accountNumber||"",t.chequeNo])];
     downloadCSV("UBC_BankTransactions.csv", toCSV(rows));
     toast("Cheque log exported to Downloads");
   });
